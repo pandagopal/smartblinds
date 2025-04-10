@@ -1,0 +1,302 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+body {
+  font-family: 'Inter', 'Helvetica Neue', system-ui, sans-serif;
+  background-color: #f5f5f5;
+  color: #333333;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 500;
+  margin-top: 0;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Animation Utilities */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom color classes - as a backup in case Tailwind doesn't apply */
+:root {
+  --primary-red: #e53e3e;
+  --secondary-red: #c53030;
+}
+
+.bg-primary-red {
+  background-color: var(--primary-red) !important;
+}
+
+.text-primary-red {
+  color: var(--primary-red) !important;
+}
+
+.border-primary-red {
+  border-color: var(--primary-red) !important;
+}
+
+.bg-secondary-red {
+  background-color: var(--secondary-red) !important;
+}
+
+.text-secondary-red {
+  color: var(--secondary-red) !important;
+}
+
+/* Component styles */
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.btn-primary {
+  background-color: #c41230;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #ab102b;
+}
+
+.btn-secondary {
+  background-color: #e5e7eb;
+  color: #1f2937;
+}
+
+.btn-secondary:hover {
+  background-color: #d1d5db;
+}
+
+.input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #c41230;
+  box-shadow: 0 0 0 2px rgba(196, 18, 48, 0.1);
+}
+
+/* Container utility */
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Special Offer Banner */
+.special-offer {
+  background-color: #c41230;
+  color: white;
+  text-align: center;
+  padding: 0.25rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Product Configurator Styles */
+.product-configurator .color-option:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.product-configurator .window-frame {
+  border: 4px solid #ccc;
+  background-color: #f0f8ff;
+  border-radius: 4px;
+  position: relative;
+}
+
+.product-configurator .blinds-container {
+  background-color: #fff;
+  overflow: hidden;
+}
+
+.product-configurator .slat {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  margin-bottom: 4px;
+}
+
+.product-configurator .option-card {
+  cursor: pointer;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.product-configurator .option-card:hover {
+  border-color: #c41230;
+  background-color: rgba(196, 18, 48, 0.05);
+}
+
+.product-configurator .option-card.selected {
+  border-color: #c41230;
+  background-color: rgba(196, 18, 48, 0.1);
+}
+
+.product-configurator .price-breakdown {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+}
+
+/* Aspect ratio utilities */
+.aspect-w-1,
+.aspect-w-2,
+.aspect-w-3,
+.aspect-w-4,
+.aspect-w-5,
+.aspect-w-6,
+.aspect-w-7,
+.aspect-w-8,
+.aspect-w-9,
+.aspect-w-10,
+.aspect-w-11,
+.aspect-w-12,
+.aspect-w-13,
+.aspect-w-14,
+.aspect-w-15,
+.aspect-w-16 {
+  position: relative;
+}
+
+.aspect-w-1 > *,
+.aspect-w-2 > *,
+.aspect-w-3 > *,
+.aspect-w-4 > *,
+.aspect-w-5 > *,
+.aspect-w-6 > *,
+.aspect-w-7 > *,
+.aspect-w-8 > *,
+.aspect-w-9 > *,
+.aspect-w-10 > *,
+.aspect-w-11 > *,
+.aspect-w-12 > *,
+.aspect-w-13 > *,
+.aspect-w-14 > *,
+.aspect-w-15 > *,
+.aspect-w-16 > * {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.aspect-w-1 {
+  padding-bottom: calc(1 / 1 * 100%);
+}
+.aspect-w-2 {
+  padding-bottom: calc(2 / 1 * 100%);
+}
+.aspect-w-3 {
+  padding-bottom: calc(3 / 1 * 100%);
+}
+.aspect-w-4 {
+  padding-bottom: calc(4 / 1 * 100%);
+}
+.aspect-w-5 {
+  padding-bottom: calc(5 / 1 * 100%);
+}
+.aspect-w-6 {
+  padding-bottom: calc(6 / 1 * 100%);
+}
+
+.aspect-h-1 {
+  --tw-aspect-h: 1;
+}
+.aspect-h-2 {
+  --tw-aspect-h: 2;
+}
+.aspect-h-3 {
+  --tw-aspect-h: 3;
+}
+.aspect-h-4 {
+  --tw-aspect-h: 4;
+}
+.aspect-h-5 {
+  --tw-aspect-h: 5;
+}
+.aspect-h-6 {
+  --tw-aspect-h: 6;
+}
+
+.aspect-w-1.aspect-h-1 {
+  padding-bottom: calc(var(--tw-aspect-h) / 1 * 100%);
+}
+.aspect-w-2.aspect-h-1 {
+  padding-bottom: calc(var(--tw-aspect-h) / 2 * 100%);
+}
+.aspect-w-3.aspect-h-1 {
+  padding-bottom: calc(var(--tw-aspect-h) / 3 * 100%);
+}
+.aspect-w-4.aspect-h-1 {
+  padding-bottom: calc(var(--tw-aspect-h) / 4 * 100%);
+}
+.aspect-w-4.aspect-h-3 {
+  padding-bottom: calc(var(--tw-aspect-h) / 4 * 3 * 100%);
+}
+.aspect-w-16.aspect-h-9 {
+  padding-bottom: calc(var(--tw-aspect-h) / 16 * 9 * 100%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  .product-configurator .window-frame {
+    max-width: 100%;
+    height: auto;
+  }
+}

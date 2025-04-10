@@ -1,0 +1,169 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Product } from '../models/Product';
+import { addToCart } from '../services/cartService';
+import { calculatePrice } from '../services/pricingService';
+import { getAvailableColors } from '../services/colorService';
+import ProductPreview from './ProductPreview';
+import SaveConfiguration from './SaveConfiguration';
+import ColorSamples from './ColorSamples';
+import RecentlyViewed from './RecentlyViewed';
+import ScreenshotGenerator from './ScreenshotGenerator';
+import FavoritesPanel from './FavoritesPanel';
+import FavoritesComparison from './FavoritesComparison';
+import FavoritesBulkActions from './FavoritesBulkActions';
+import { addToRecentlyViewed } from '../services/recentlyViewedService';
+import { FavoriteItem, toggleFavorite, isFavorite } from '../services/favoritesService';
+import { AnimationWrapper } from './AnimationProvider';
+import { motion } from 'framer-motion';
+import RoomSelector from './RoomSelector';
+import MountTypeSelector from './MountTypeSelector';
+import OpacitySelector from './OpacitySelector';
+import ProfessionalServices from './ProfessionalServices';
+
+/* Color selection */
+<div className="mb-6">
+  <h3 className="text-md font-medium mb-3">Color</h3>
+  <ColorSamples
+    colors={availableColors}
+    selectedColor={selectedOptions.color}
+    onSelectColor={(colorId) => handleConfigChange('color', colorId)}
+    sampleType="rectangular"
+    showLabels={true}
+  />
+</div>
+
+/* Opacity options */
+<div className="mb-6">
+  <h3 className="text-md font-medium mb-3">Opacity</h3>
+  <OpacitySelector
+    selectedOpacity={selectedOptions.opacity as OpacityOption}
+    onChange={(opacity) => handleConfigChange('opacity', opacity)}
+  />
+</div>
+
+/* Slat size */
+
+// Calculate price based on current selections
+const priceBreakdown = calculatePrice({
+  width: widthDecimal,
+  height: heightDecimal,
+  slatSize: selectedOptions.slatSize,
+  mountType: selectedOptions.mountType,
+  controlType: selectedOptions.controlType,
+  headrailType: selectedOptions.headrailType,
+  productType: productType,
+  opacity: selectedOptions.opacity,
+  slatStyle: selectedOptions.slatStyle,
+  tiltType: selectedOptions.tiltType,
+  clothTape: selectedOptions.clothTape,
+  professionalInstallation: selectedOptions.professionalInstallation,
+  professionalMeasurement: selectedOptions.professionalMeasurement,
+  expeditedProduction: selectedOptions.expeditedProduction
+});
+
+// Handle configuration changes
+const handleConfigChange = (option: string, value: string | number | boolean) => {
+  setSelectedOptions(prev => ({
+    ...prev,
+    [option]: value
+  }));
+
+  // Update window style when selecting color to match the theme
+  if (option === 'color') {
+    const colorName = value.toString().toLowerCase();
+    if (colorName === 'white' || colorName === 'gray') {
+      setWindowStyle('modern');
+    } else if (colorName === 'tan' || colorName === 'brown') {
+      setWindowStyle('traditional');
+    } else if (colorName === 'golden_oak' || colorName === 'walnut') {
+      setWindowStyle('farmhouse');
+    }
+  }
+};
+
+// Handle professional option toggles
+const handleToggleMeasurement = () => {
+  setSelectedOptions(prev => ({
+    ...prev,
+    professionalMeasurement: !prev.professionalMeasurement
+  }));
+};
+
+const handleToggleInstallation = () => {
+  setSelectedOptions(prev => ({
+    ...prev,
+    professionalInstallation: !prev.professionalInstallation
+  }));
+};
+
+const handleToggleExpedited = () => {
+  setSelectedOptions(prev => ({
+    ...prev,
+    expeditedProduction: !prev.expeditedProduction
+  }));
+};
+
+/* Price breakdown */
+<div className="mb-6 bg-gray-50 p-4 rounded-lg">
+  <h3 className="text-md font-medium mb-3">Price Breakdown</h3>
+  <div className="space-y-2">
+    <div className="flex justify-between">
+      <span>Base Price:</span>
+      <span>${priceBreakdown.basePrice.toFixed(2)}</span>
+    </div>
+    <div className="flex justify-between">
+      <span>Size Adjustment:</span>
+      <span>${priceBreakdown.sizeAdjustment.toFixed(2)}</span>
+    </div>
+    <div className="flex justify-between">
+      <span>Control Type:</span>
+      <span>${priceBreakdown.controlTypePrice.toFixed(2)}</span>
+    </div>
+    {priceBreakdown.opacityPrice > 0 && (
+      <div className="flex justify-between">
+        <span>Opacity Option:</span>
+        <span>${priceBreakdown.opacityPrice.toFixed(2)}</span>
+      </div>
+    )}
+    {priceBreakdown.clothTapePrice > 0 && (
+      <div className="flex justify-between">
+        <span>Cloth Tape:</span>
+        <span>${priceBreakdown.clothTapePrice.toFixed(2)}</span>
+      </div>
+    )}
+    {priceBreakdown.tiltTypePrice > 0 && (
+      <div className="flex justify-between">
+        <span>Tilt Type:</span>
+        <span>${priceBreakdown.tiltTypePrice.toFixed(2)}</span>
+      </div>
+    )}
+    {priceBreakdown.professionalMeasurementPrice > 0 && (
+      <div className="flex justify-between">
+        <span>Professional Measurement:</span>
+        <span>${priceBreakdown.professionalMeasurementPrice.toFixed(2)}</span>
+      </div>
+    )}
+    {priceBreakdown.professionalInstallationPrice > 0 && (
+      <div className="flex justify-between">
+        <span>Professional Installation:</span>
+        <span>${priceBreakdown.professionalInstallationPrice.toFixed(2)}</span>
+      </div>
+    )}
+    {priceBreakdown.expeditedProductionPrice > 0 && (
+      <div className="flex justify-between">
+        <span>Expedited Production:</span>
+        <span>${priceBreakdown.expeditedProductionPrice.toFixed(2)}</span>
+      </div>
+    )}
+    <div className="flex justify-between font-medium">
+      <span>Total (per unit):</span>
+      <span>${priceBreakdown.total.toFixed(2)}</span>
+    </div>
+    {quantity > 1 && (
+      <div className="flex justify-between font-bold pt-2 border-t border-gray-300">
+        <span>Total ({quantity} blinds):</span>
+        <span>${(priceBreakdown.total * quantity).toFixed(2)}</span>
+      </div>
+    )}
+  </div>
+</div>
