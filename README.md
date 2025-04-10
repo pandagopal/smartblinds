@@ -108,7 +108,11 @@ Here are the step-by-step instructions to set up and build the project locally o
 1. **Start the development server**:
    - In the terminal, run:
      ```
-     bun run dev
+    To run the project:
+
+    Frontend: bun run dev
+    Backend: bun run server
+    Generate CSV data: bun run generate:csv
      ```
    - This will start the Vite development server
 
