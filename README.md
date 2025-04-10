@@ -109,18 +109,20 @@ Here are the step-by-step instructions to set up and build the project locally o
    - In the terminal, run:
      ```
     To run the project:
-
     Frontend: bun run dev
+   
     Backend: bun run server
+   
     Generate CSV data: bun run generate:csv
+   
      ```
    - This will start the Vite development server
 
-2. **Access the application**:
+3. **Access the application**:
    - Open your browser and navigate to `http://localhost:5173`
    - The application should be running now
 
-3. **Access the Product Configurator**:
+4. **Access the Product Configurator**:
    - Click on any product
    - Click on "Configure" or navigate directly to `http://localhost:5173/product/configure/product-2`
 
