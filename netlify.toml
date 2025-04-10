@@ -1,21 +1,40 @@
 [build]
-  command = "bun install && bun run build"
+  command = "bun run build"
   publish = "dist"
-  environment = { NODE_VERSION = "20" }
+  functions = "backend/functions"
 
 [dev]
   command = "bun run dev"
   port = 5173
-  framework = "vite"
+  targetPort = 5173
 
-[functions]
-  node_bundler = "esbuild"
-
+# Handle frontend routes with client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
+  conditions = {Role = ["anonymous", "user"]}
+
+# API proxy - send API calls to serverless functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
   force = true
+
+# Environmental variables
+[context.production.environment]
+  NODE_ENV = "production"
+  API_BASE_URL = "/.netlify/functions/api"
+
+[context.deploy-preview.environment]
+  NODE_ENV = "production"
+  API_BASE_URL = "/.netlify/functions/api"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["pg-native"]
 
 [images]
   remote_images = ["https://ext.same-assets.com/*"]

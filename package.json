@@ -5,15 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build --outDir dist",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "build": "tsc && vite build",
+    "serve": "vite preview",
+    "server": "node backend/server.js",
+    "server:dev": "nodemon backend/server.js",
+    "generate:csv": "node backend/scripts/generateCsvData.js",
+    "build:netlify": "bun run build && netlify-lambda build backend/functions"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "braintree-web-drop-in": "^1.44.1",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "framer-motion": "^12.6.2",
@@ -24,6 +29,7 @@
     "react-dom": "^19.0.0",
     "react-error-boundary": "^5.0.0",
     "react-router-dom": "^7.4.0",
+    "serverless-http": "^3.2.0",
     "slugify": "^1.6.6"
   },
   "devDependencies": {
