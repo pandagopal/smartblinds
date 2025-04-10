@@ -102,7 +102,7 @@ function App() {
       <div className="flex flex-col min-h-screen">
         {/* Top bar - Special offer */}
         <div className="bg-[#c41230] text-white py-1 px-4 text-center text-sm">
-          Call (425) 222-1088 to get discount 10% on initial order.
+          Call (316) 530-2635 to get discount 10% on initial order.
         </div>
 
         {/* Header */}
@@ -398,7 +398,7 @@ function App() {
                 </div>
                 <div>
                   <div className="text-sm font-medium">Sales & Design Help</div>
-                  <div className="text-lg font-bold">(425) 222-1088</div>
+                  <div className="text-lg font-bold">(316) 530-2635</div>
                 </div>
               </div>
 

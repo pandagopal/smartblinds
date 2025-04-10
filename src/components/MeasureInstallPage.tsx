@@ -14,7 +14,7 @@ const MeasureInstallPage: React.FC = () => {
           </p>
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
             <p className="text-sm font-medium text-gray-800">Need help? Our measurement experts are ready to assist you!</p>
-            <p className="text-sm text-gray-600">Call (425) 222-1088 or schedule a free virtual consultation.</p>
+            <p className="text-sm text-gray-600">Call (316) 530-2635 or schedule a free virtual consultation.</p>
           </div>
           <button className="bg-primary-red hover:bg-red-700 text-white font-medium py-2 px-4 rounded transition-colors">
             Schedule Free Consultation
