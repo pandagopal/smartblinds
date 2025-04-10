@@ -109,6 +109,7 @@ Here are the step-by-step instructions to set up and build the project locally o
    - In the terminal, run:
      ```
     To run the project:
+   
     Frontend: bun run dev
    
     Backend: bun run server
