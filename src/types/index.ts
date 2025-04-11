@@ -13,14 +13,17 @@ export interface User {
   updatedAt: Date;
 }
 
+// User session with role
+export interface UserSession {
+  id: string;
+  name?: string | null;
+  email: string;
+  image?: string | null;
+  role: UserRole;
+}
+
 // Session type
 export interface Session {
-  user?: {
-    id: string;
-    name?: string | null;
-    email: string;
-    image?: string | null;
-    role: UserRole;
-  };
+  user?: UserSession;
   expires: string;
 }
