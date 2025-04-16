@@ -78,9 +78,28 @@ class AuthService {
   // Check if current user is an admin
   isAdmin(): boolean {
     const user = this.getCurrentUser();
-    return (
-      user && (user.role === UserRole.ADMIN || user.is_admin === true || user.is_admin === 't' || user.is_admin === 'true' || user.is_admin === 1 || user.is_admin === '1')
+
+    if (!user) {
+      console.log('[Auth] isAdmin check failed: No user data found');
+      return false;
+    }
+
+    // Log the user data for debugging
+    console.log('[Auth] isAdmin check - User data:', JSON.stringify(user, null, 2));
+
+    // Handle various ways an admin flag could be represented
+    const isUserAdmin = !!(
+      user.role === UserRole.ADMIN ||
+      user.role === 'admin' ||
+      user.is_admin === true ||
+      user.is_admin === 't' ||
+      user.is_admin === 'true' ||
+      user.is_admin === 1 ||
+      user.is_admin === '1'
     );
+
+    console.log(`[Auth] isAdmin check result: ${isUserAdmin}`);
+    return isUserAdmin;
   }
 
   // Check if current user is a vendor

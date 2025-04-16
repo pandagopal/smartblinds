@@ -10,12 +10,29 @@ import SalesDashboard from './dashboards/SalesDashboard';
 const DashboardRouter: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Get current user from auth service
     const currentUser = authService.getCurrentUser();
+    console.log('[DashboardRouter] Current user data:', currentUser);
+
+    // Add a token check
+    const token = authService.getToken();
+    console.log('[DashboardRouter] Authentication token:', token ? 'exists' : 'missing');
+
     setUser(currentUser);
     setLoading(false);
+
+    if (!currentUser && token) {
+      console.error('[DashboardRouter] Token exists but no user data found');
+      setError('Session invalid. Please sign in again.');
+      // Force logout after delay
+      setTimeout(() => {
+        authService.logout();
+        window.location.href = '/signin';
+      }, 2000);
+    }
   }, []);
 
   if (loading) {
@@ -26,12 +43,33 @@ const DashboardRouter: React.FC = () => {
     );
   }
 
+  // Show error message if present
+  if (error) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-[400px]">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      </div>
+    );
+  }
+
   // If not authenticated, redirect to login
   if (!authService.isAuthenticated()) {
+    console.log('[DashboardRouter] User not authenticated, redirecting to signin');
     return <Navigate to="/signin" replace />;
   }
 
+  // Check for admin specifically first
+  if (authService.isAdmin()) {
+    console.log('[DashboardRouter] Identified as admin, showing admin dashboard');
+    return <AdminDashboard />;
+  }
+
   // Route to the appropriate dashboard based on user role
+  console.log('[DashboardRouter] User role:', user?.role);
+
   switch (user?.role) {
     case 'admin':
       return <AdminDashboard />;
@@ -39,10 +77,18 @@ const DashboardRouter: React.FC = () => {
       return <VendorDashboard />;
     case 'installer':
       return <InstallerDashboard />;
+    case 'sales_person':
     case 'sales':
       return <SalesDashboard />;
     case 'customer':
+      return <CustomerDashboard />;
     default:
+      // Handle unclear role situations by checking if we have any role-specific flags
+      if (user?.is_admin === true || user?.is_admin === 't' || user?.is_admin === 'true' || user?.is_admin === 1 || user?.is_admin === '1') {
+        return <AdminDashboard />;
+      }
+
+      console.log('[DashboardRouter] No specific role identified, defaulting to customer dashboard');
       return <CustomerDashboard />;
   }
 };
