@@ -97,9 +97,6 @@ const apiRequest = async <T>(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      // Try to refresh token if needed before making the request
-      await authService.refreshTokenIfNeeded();
-
       const token = authService.getToken();
 
       if (!token) {
@@ -126,13 +123,7 @@ const apiRequest = async <T>(
       if (contentType && contentType.includes('text/html')) {
         console.error('[Admin API] Received HTML response instead of JSON - likely session expired');
 
-        // Try to refresh token before giving up
-        if (attempt === 0 && await authService.refreshTokenIfNeeded()) {
-          console.log('[Admin API] Token refreshed, retrying request');
-          continue; // Retry immediately with fresh token
-        }
-
-        authService.logout(); // Force logout as the session is invalid
+        // Don't automatically logout - just report the error
         throw new Error('Your session has expired. Please sign in again.');
       }
 
@@ -143,13 +134,7 @@ const apiRequest = async <T>(
         if (response.status === 401) {
           console.error('[Admin API] Authentication error:', errorMessage);
 
-          // Try to refresh token before giving up
-          if (attempt === 0 && await authService.refreshTokenIfNeeded()) {
-            console.log('[Admin API] Token refreshed after 401, retrying request');
-            continue; // Retry immediately with fresh token
-          }
-
-          authService.logout(); // Force logout on authentication errors
+          // Don't automatically logout - just report the error
           throw new Error('Authentication error - please sign in again');
         }
 

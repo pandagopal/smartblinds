@@ -17,29 +17,21 @@ const DashboardRouter: React.FC = () => {
     const currentUser = authService.getCurrentUser();
     console.log('[DashboardRouter] Current user data:', currentUser);
 
-    // Add a token check
+    // Add a token check but don't try to refresh it
     const token = authService.getToken();
     console.log('[DashboardRouter] Authentication token:', token ? 'exists' : 'missing');
 
     if (!token) {
       setError('Authentication required. Please sign in to access your dashboard.');
-      setTimeout(() => {
-        window.location.href = '/signin';
-      }, 2000);
-      return;
-    }
-
-    setUser(currentUser);
-    setLoading(false);
-
-    if (!currentUser && token) {
+      setLoading(false);
+    } else if (!currentUser) {
       console.error('[DashboardRouter] Token exists but no user data found');
-      setError('Session invalid. Please sign in again.');
-      // Force logout after delay
-      setTimeout(() => {
-        authService.logout();
-        window.location.href = '/signin';
-      }, 2000);
+      setError('User data not found. Please sign in again.');
+      setLoading(false);
+    } else {
+      // We have both token and user data, we can proceed
+      setUser(currentUser);
+      setLoading(false);
     }
   }, []);
 

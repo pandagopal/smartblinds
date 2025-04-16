@@ -43,15 +43,14 @@ const AdminDashboard: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Set up token refresh interval
+  // Set up token refresh interval - don't refresh on mount
   useEffect(() => {
-    // Refresh token on component mount
-    authService.refreshTokenIfNeeded();
-
-    // Set up an interval to refresh the token
+    // Don't attempt token refresh on component mount - this might cause session expiration
     const intervalId = setInterval(() => {
-      authService.refreshTokenIfNeeded();
-    }, 5 * 60 * 1000); // Every 5 minutes
+      // Only log that we would refresh, but don't actually do it yet
+      console.log('[AdminDashboard] Would refresh token if needed');
+      // authService.refreshTokenIfNeeded();
+    }, 10 * 60 * 1000); // Every 10 minutes
 
     // Clear interval on component unmount
     return () => {
@@ -59,20 +58,17 @@ const AdminDashboard: React.FC = () => {
     };
   }, []);
 
-  // Refresh token when path changes (e.g., navigating to Orders section)
+  // Remove the token refresh on path change
   useEffect(() => {
-    const refreshToken = async () => {
-      await authService.refreshTokenIfNeeded();
-    };
-
-    refreshToken();
+    console.log('[AdminDashboard] Path changed:', location.pathname);
+    // Don't refresh token on path change for now
   }, [location.pathname]);
 
+  // Update the main data fetching useEffect
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Make sure token is fresh before checking admin role
-        await authService.refreshTokenIfNeeded();
+        // No token refresh before checking admin role
 
         // Check for token first
         const token = authService.getToken();
@@ -80,7 +76,6 @@ const AdminDashboard: React.FC = () => {
           console.error('No authentication token available');
           setError('Authentication required. Please sign in.');
           setLoading(false);
-          setTimeout(() => navigate('/signin'), 2000);
           return;
         }
 
@@ -90,9 +85,6 @@ const AdminDashboard: React.FC = () => {
           console.error('User data not found');
           setError('User data not found. Please sign in again.');
           setLoading(false);
-          setTimeout(() => {
-            window.location.href = '/signin';  // Use direct URL navigation instead of logout
-          }, 2000);
           return;
         }
 
@@ -117,7 +109,6 @@ const AdminDashboard: React.FC = () => {
           console.error('Access denied: User is not an admin, role:', user.role);
           setError(`Access denied: Admin privileges required. Your role is ${user.role}.`);
           setLoading(false);
-          setTimeout(() => navigate('/dashboard'), 3000); // Redirect to main dashboard
           return;
         }
 
@@ -128,15 +119,8 @@ const AdminDashboard: React.FC = () => {
       } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
 
-        // Only logout on clear authentication failures, not on all errors
-        if (error.message?.includes('auth') || error.message?.includes('sign in')) {
-          setError(error.message || 'Authentication error. Please sign in again.');
-          setTimeout(() => {
-            window.location.href = '/signin';  // Use direct URL navigation instead of logout
-          }, 2000);
-        } else {
-          setError(error.message || 'Failed to load dashboard data');
-        }
+        // Don't automatically redirect to sign in
+        setError(error.message || 'Failed to load dashboard data');
 
         // Set default empty stats to avoid null checks
         setStats({

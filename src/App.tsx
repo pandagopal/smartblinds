@@ -42,6 +42,51 @@ import SalesDashboard from './components/dashboards/SalesDashboard';
 import InstallerDashboard from './components/dashboards/InstallerDashboard';
 import DashboardRouter from './components/DashboardRouter';
 import { api } from './services/api';
+import { authService } from './services/authService'; // Import authService
+import { UserRole } from './services/authService'; // Import UserRole from authService
+
+// New component for handling role-based dashboard redirects
+const DashboardRedirect = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Get current user from auth service
+    const user = authService.getCurrentUser();
+
+    if (!user || !authService.isAuthenticated()) {
+      navigate('/signin');
+      return;
+    }
+
+    // Redirect based on role
+    if (authService.isAdmin()) {
+      navigate('/admin');
+    } else if (user.role === UserRole.VENDOR) {
+      navigate('/vendor');
+    } else if (user.role === UserRole.SALES_PERSON || user.role === 'sales') {
+      navigate('/sales');
+    } else if (user.role === UserRole.INSTALLER) {
+      navigate('/installer');
+    } else {
+      // Default to customer dashboard
+      navigate('/dashboard/customer');
+    }
+
+    setLoading(false);
+  }, [navigate]);
+
+  // Show loading spinner while redirecting
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-red"></div>
+      </div>
+    );
+  }
+
+  return null;
+};
 
 const CategorySection = () => {
   const navigate = useNavigate();
@@ -342,6 +387,9 @@ function App() {
             <Route path="/blog/:postId" element={<BlogPostPage />} />
             <Route path="/compare" element={<ProductComparisonPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
+
+            {/* Role-based dashboard redirects */}
+            <Route path="/dashboard" element={<DashboardRedirect />} />
 
             {/* Dashboard Router */}
             <Route path="/dashboard/*" element={<DashboardRouter />} />

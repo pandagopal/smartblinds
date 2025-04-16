@@ -148,46 +148,18 @@ class AuthService {
       return false;
     }
 
-    // Check if we have an expiry time
+    // Don't attempt to refresh the token for now - just validate that it exists
+    // and set a new expiry time if needed
     const expiryTimeStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
     if (!expiryTimeStr) {
       // If no expiry time, set one but don't necessarily refresh
-      this.setTokenExpiry();
+      this.setTokenExpiry(60); // Set a longer expiry of 60 minutes
       return true;
     }
 
-    const expiryTime = parseInt(expiryTimeStr, 10);
-    const fiveMinutes = 5 * 60 * 1000;
-
-    // Only refresh if expiring soon
-    if (Date.now() + fiveMinutes >= expiryTime) {
-      try {
-        console.log('[AuthService] Refreshing token...');
-        const response = await fetch('/auth/refresh', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          const { token } = await response.json();
-          if (token) {
-            localStorage.setItem(TOKEN_KEY, token);
-            this.setTokenExpiry(); // Reset expiry time
-            dispatchAuthEvent('refresh');
-            return true;
-          }
-        }
-        return false;
-      } catch (error) {
-        console.error('[AuthService] Token refresh failed:', error);
-        return false;
-      }
-    }
-
-    return true; // Token exists and isn't expiring soon
+    // Just return true if we have a token - don't try to refresh it yet
+    // This will stop the immediate session expirations
+    return true;
   }
 
   // Login user
@@ -196,7 +168,9 @@ class AuthService {
     console.log('[AuthService] Storing token and user data');
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(userData));
-    this.setTokenExpiry(); // Set token expiry time
+
+    // Set a longer token expiry of 60 minutes
+    this.setTokenExpiry(60);
 
     // Dispatch custom event for login
     console.log('[AuthService] Dispatching login event');
