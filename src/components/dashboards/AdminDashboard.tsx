@@ -43,6 +43,31 @@ const AdminDashboard: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Set up token refresh interval
+  useEffect(() => {
+    // Refresh token on component mount
+    authService.refreshTokenIfNeeded();
+
+    // Set up an interval to refresh the token
+    const intervalId = setInterval(() => {
+      authService.refreshTokenIfNeeded();
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    // Clear interval on component unmount
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  // Refresh token when path changes (e.g., navigating to Orders section)
+  useEffect(() => {
+    const refreshToken = async () => {
+      await authService.refreshTokenIfNeeded();
+    };
+
+    refreshToken();
+  }, [location.pathname]);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -59,6 +84,9 @@ const AdminDashboard: React.FC = () => {
         // Get current user data
         const user = authService.getCurrentUser();
         setUserData(user);
+
+        // Make sure token is fresh before making API call
+        await authService.refreshTokenIfNeeded();
 
         // Log the token for debugging purposes
         const token = authService.getToken();

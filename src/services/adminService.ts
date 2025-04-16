@@ -97,6 +97,9 @@ const apiRequest = async <T>(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      // Try to refresh token if needed before making the request
+      await authService.refreshTokenIfNeeded();
+
       const token = authService.getToken();
 
       if (!token) {
@@ -118,12 +121,35 @@ const apiRequest = async <T>(
       console.log(`[Admin API] Making ${method} request to ${endpoint}`, attempt > 0 ? `(retry attempt ${attempt})` : '');
       const response = await fetch(`${API_URL}${endpoint}`, options);
 
+      // Check content type to detect HTML responses instead of JSON
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        console.error('[Admin API] Received HTML response instead of JSON - likely session expired');
+
+        // Try to refresh token before giving up
+        if (attempt === 0 && await authService.refreshTokenIfNeeded()) {
+          console.log('[Admin API] Token refreshed, retrying request');
+          continue; // Retry immediately with fresh token
+        }
+
+        authService.logout(); // Force logout as the session is invalid
+        throw new Error('Your session has expired. Please sign in again.');
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         const errorMessage = errorData?.message || `Request failed with status ${response.status}`;
 
         if (response.status === 401) {
           console.error('[Admin API] Authentication error:', errorMessage);
+
+          // Try to refresh token before giving up
+          if (attempt === 0 && await authService.refreshTokenIfNeeded()) {
+            console.log('[Admin API] Token refreshed after 401, retrying request');
+            continue; // Retry immediately with fresh token
+          }
+
+          authService.logout(); // Force logout on authentication errors
           throw new Error('Authentication error - please sign in again');
         }
 
@@ -136,8 +162,14 @@ const apiRequest = async <T>(
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      return data.data;
+      // Safely parse JSON response
+      try {
+        const data = await response.json();
+        return data.data;
+      } catch (jsonError) {
+        console.error('[Admin API] Failed to parse JSON response:', jsonError);
+        throw new Error('Invalid response format from server');
+      }
     } catch (error: any) {
       lastError = error;
 

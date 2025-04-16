@@ -39,9 +39,10 @@ export enum UserRole {
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'current_user';
+const TOKEN_EXPIRY_KEY = 'token_expiry';
 
 // Custom event for auth state changes
-export const dispatchAuthEvent = (type: 'login' | 'logout') => {
+export const dispatchAuthEvent = (type: 'login' | 'logout' | 'refresh') => {
   window.dispatchEvent(new CustomEvent('auth-state-change', { detail: { type } }));
 };
 
@@ -102,12 +103,62 @@ class AuthService {
     return this.hasRole(UserRole.INSTALLER);
   }
 
+  // Set token expiry time - default to 30 minutes from now
+  setTokenExpiry(expiryMinutes: number = 30): void {
+    const expiryTime = Date.now() + expiryMinutes * 60 * 1000;
+    localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
+  }
+
+  // Check if token is about to expire (within 5 minutes)
+  isTokenExpiringSoon(): boolean {
+    const expiryTimeStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
+    if (!expiryTimeStr) return false;
+
+    const expiryTime = parseInt(expiryTimeStr, 10);
+    const fiveMinutes = 5 * 60 * 1000;
+
+    return Date.now() + fiveMinutes >= expiryTime;
+  }
+
+  // Refresh token if it's about to expire
+  async refreshTokenIfNeeded(): Promise<boolean> {
+    if (!this.isAuthenticated() || !this.isTokenExpiringSoon()) {
+      return false;
+    }
+
+    try {
+      console.log('[AuthService] Refreshing token...');
+      const response = await fetch('/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const { token } = await response.json();
+        if (token) {
+          localStorage.setItem(TOKEN_KEY, token);
+          this.setTokenExpiry(); // Reset expiry time
+          dispatchAuthEvent('refresh');
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('[AuthService] Token refresh failed:', error);
+      return false;
+    }
+  }
+
   // Login user
   login(token: string, userData: UserData): void {
     console.log('[AuthService] login() called');
     console.log('[AuthService] Storing token and user data');
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(userData));
+    this.setTokenExpiry(); // Set token expiry time
 
     // Dispatch custom event for login
     console.log('[AuthService] Dispatching login event');
@@ -131,6 +182,7 @@ class AuthService {
       // Remove auth data from localStorage regardless of API success
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TOKEN_EXPIRY_KEY);
 
       // Dispatch custom event for logout
       dispatchAuthEvent('logout');

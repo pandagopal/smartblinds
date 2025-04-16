@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getShipments, Shipment, ShippingStatus } from '../../services/shippingService';
+import { authService } from '../../services/authService';
 
 interface ShippingMetrics {
   totalShipments: number;
@@ -45,6 +46,9 @@ const ShippingDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      // Refresh token before making API call to prevent session expiration
+      await authService.refreshTokenIfNeeded();
+
       // Get shipments from selected date range
       const shipmentsData = await getShipments({
         from: dateRange.from,
@@ -54,7 +58,11 @@ const ShippingDashboard: React.FC = () => {
       setShipments(shipmentsData);
       calculateMetrics(shipmentsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load shipments');
+      if (err instanceof Error && err.message.includes('session expired')) {
+        setError('Your session has expired. Please log in again.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load shipments');
+      }
       console.error('Error loading shipments:', err);
     } finally {
       setLoading(false);

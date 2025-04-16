@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../services/adminService';
+import { authService } from '../../services/authService';
 
 // Define user interface
 interface User {
@@ -28,12 +29,24 @@ const UserManagement: React.FC = () => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
+
+        // Refresh token before making API call to prevent session expiration
+        await authService.refreshTokenIfNeeded();
+
         const data = await adminService.getUsers();
         setUsers(data);
         setError(null);
       } catch (err) {
         console.error('Error fetching users:', err);
-        setError('Failed to load users. Please try again.');
+        if (err instanceof Error && err.message.includes('session expired')) {
+          setError('Your session has expired. Please log in again.');
+          setTimeout(() => {
+            authService.logout();
+            window.location.href = '/signin';
+          }, 2000);
+        } else {
+          setError('Failed to load users. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
