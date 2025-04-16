@@ -50,6 +50,18 @@ const Header: React.FC = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const getDashboardUrl = (user: any) => {
+    switch (user.role) {
+      case UserRole.ADMIN:
+        return '/admin';
+      case UserRole.VENDOR:
+        return '/vendor';
+      // Add other user roles and their dashboard URLs as needed
+      default:
+        return '/dashboard';
+    }
+  };
+
   return (
     <header className="bg-white shadow-sm" itemScope itemType="https://schema.org/WPHeader">
       <div className="bg-[#c41230] text-white py-1 px-4 text-center text-sm" role="banner">
@@ -176,6 +188,18 @@ const Header: React.FC = () => {
                     >
                       My Account
                     </Link>
+
+                    {/* Dashboard Link - shown to all users except customers */}
+                    {user?.role && user.role !== 'customer' && (
+                      <Link
+                        to={getDashboardUrl(user)}
+                        className="block px-4 py-2 text-sm text-primary-red font-medium hover:bg-gray-100"
+                        onClick={() => setIsMenuOpen(false)}
+                        role="menuitem"
+                      >
+                        Dashboard
+                      </Link>
+                    )}
 
                     {/* Admin Dashboard - only shown to admin users */}
                     {user?.role === UserRole.ADMIN && (

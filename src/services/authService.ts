@@ -141,34 +141,53 @@ class AuthService {
 
   // Refresh token if it's about to expire
   async refreshTokenIfNeeded(): Promise<boolean> {
-    if (!this.isAuthenticated() || !this.isTokenExpiringSoon()) {
+    // Always check for a token first
+    const token = this.getToken();
+    if (!token) {
+      console.warn('[AuthService] No token available for refresh');
       return false;
     }
 
-    try {
-      console.log('[AuthService] Refreshing token...');
-      const response = await fetch('/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.getToken()}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    // Check if we have an expiry time
+    const expiryTimeStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
+    if (!expiryTimeStr) {
+      // If no expiry time, set one but don't necessarily refresh
+      this.setTokenExpiry();
+      return true;
+    }
 
-      if (response.ok) {
-        const { token } = await response.json();
-        if (token) {
-          localStorage.setItem(TOKEN_KEY, token);
-          this.setTokenExpiry(); // Reset expiry time
-          dispatchAuthEvent('refresh');
-          return true;
+    const expiryTime = parseInt(expiryTimeStr, 10);
+    const fiveMinutes = 5 * 60 * 1000;
+
+    // Only refresh if expiring soon
+    if (Date.now() + fiveMinutes >= expiryTime) {
+      try {
+        console.log('[AuthService] Refreshing token...');
+        const response = await fetch('/auth/refresh', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const { token } = await response.json();
+          if (token) {
+            localStorage.setItem(TOKEN_KEY, token);
+            this.setTokenExpiry(); // Reset expiry time
+            dispatchAuthEvent('refresh');
+            return true;
+          }
         }
+        return false;
+      } catch (error) {
+        console.error('[AuthService] Token refresh failed:', error);
+        return false;
       }
-      return false;
-    } catch (error) {
-      console.error('[AuthService] Token refresh failed:', error);
-      return false;
     }
+
+    return true; // Token exists and isn't expiring soon
   }
 
   // Login user

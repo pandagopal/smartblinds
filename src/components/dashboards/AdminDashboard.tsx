@@ -71,6 +71,9 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        // Make sure token is fresh before checking admin role
+        await authService.refreshTokenIfNeeded();
+
         // Check for token first
         const token = authService.getToken();
         if (!token) {
@@ -88,8 +91,7 @@ const AdminDashboard: React.FC = () => {
           setError('User data not found. Please sign in again.');
           setLoading(false);
           setTimeout(() => {
-            authService.logout();
-            navigate('/signin');
+            window.location.href = '/signin';  // Use direct URL navigation instead of logout
           }, 2000);
           return;
         }
@@ -102,9 +104,14 @@ const AdminDashboard: React.FC = () => {
         console.log('User role:', user.role);
         console.log('Is admin flag:', user.is_admin);
 
-        // Special handling for admin check
-        const isAdmin = user.role === "admin" || user.is_admin === true || user.is_admin === "true" ||
-                       user.is_admin === "t" || user.is_admin === 1 || user.is_admin === "1";
+        // Special handling for admin check - be more permissive
+        const isAdmin = user.role === "admin" ||
+                        user.role === "ADMIN" ||
+                        user.is_admin === true ||
+                        user.is_admin === "true" ||
+                        user.is_admin === "t" ||
+                        user.is_admin === 1 ||
+                        user.is_admin === "1";
 
         if (!isAdmin) {
           console.error('Access denied: User is not an admin, role:', user.role);
@@ -114,25 +121,18 @@ const AdminDashboard: React.FC = () => {
           return;
         }
 
-        // Make sure token is fresh before making API call
-        await authService.refreshTokenIfNeeded();
-
-        // Log the token for debugging purposes
-        console.log('Using token for admin dashboard:', token ? 'Token exists' : 'No token');
-
-        // Fetch real dashboard data
+        // Only after admin check passes, fetch dashboard data
         const dashboardData = await adminService.getDashboard();
         setStats(dashboardData);
         setError(null);
       } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
 
-        // Special handling for authentication errors
-        if (error.message?.includes('authentication') || error.message?.includes('sign in')) {
+        // Only logout on clear authentication failures, not on all errors
+        if (error.message?.includes('auth') || error.message?.includes('sign in')) {
           setError(error.message || 'Authentication error. Please sign in again.');
           setTimeout(() => {
-            authService.logout();
-            navigate('/signin');
+            window.location.href = '/signin';  // Use direct URL navigation instead of logout
           }, 2000);
         } else {
           setError(error.message || 'Failed to load dashboard data');
