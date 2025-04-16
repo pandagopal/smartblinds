@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { authService } from '../services/authService';
 import CustomerDashboard from './dashboards/CustomerDashboard';
 import VendorDashboard from './dashboards/VendorDashboard';
@@ -20,6 +20,14 @@ const DashboardRouter: React.FC = () => {
     // Add a token check
     const token = authService.getToken();
     console.log('[DashboardRouter] Authentication token:', token ? 'exists' : 'missing');
+
+    if (!token) {
+      setError('Authentication required. Please sign in to access your dashboard.');
+      setTimeout(() => {
+        window.location.href = '/signin';
+      }, 2000);
+      return;
+    }
 
     setUser(currentUser);
     setLoading(false);
@@ -51,6 +59,9 @@ const DashboardRouter: React.FC = () => {
           <strong className="font-bold">Error: </strong>
           <span className="block sm:inline">{error}</span>
         </div>
+        <Link to="/signin" className="mt-4 bg-primary-red text-white px-4 py-2 rounded hover:bg-red-700">
+          Sign In
+        </Link>
       </div>
     );
   }
@@ -61,7 +72,7 @@ const DashboardRouter: React.FC = () => {
     return <Navigate to="/signin" replace />;
   }
 
-  // Check for admin specifically first
+  // Check for admin specifically - if user is admin, let them access admin dashboard
   if (authService.isAdmin()) {
     console.log('[DashboardRouter] Identified as admin, showing admin dashboard');
     return <AdminDashboard />;
@@ -83,7 +94,7 @@ const DashboardRouter: React.FC = () => {
     case 'customer':
       return <CustomerDashboard />;
     default:
-      // Handle unclear role situations by checking if we have any role-specific flags
+      // If no specific role is set but user is admin (checked by other fields)
       if (user?.is_admin === true || user?.is_admin === 't' || user?.is_admin === 'true' || user?.is_admin === 1 || user?.is_admin === '1') {
         return <AdminDashboard />;
       }

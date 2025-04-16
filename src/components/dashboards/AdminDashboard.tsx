@@ -1,4 +1,217 @@
-// Add the remaining components from the original file
+import React, { useState, useEffect } from 'react';
+import { Link, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { authService } from '../../services/authService';
+import { adminService } from '../../services/adminService';
+import VendorManagement from '../admin/VendorManagement';
+import VendorDetails from '../admin/VendorDetails';
+import UserManagement from '../admin/UserManagement';
+import ProductsManager from '../admin/database/ProductsManager';
+import CacheManager from '../admin/database/CacheManager';
+import ShippingDashboard from '../admin/ShippingDashboard';
+import BatchShipping from '../admin/BatchShipping';
+import DatabaseAdminPanel from '../admin/DatabaseAdminPanel';
+
+interface DashboardStats {
+  userCounts: {
+    total_users: number;
+    customers: number;
+    vendors: number;
+    admins: number;
+  };
+  vendorStatus: {
+    active_vendors: number;
+    inactive_vendors: number;
+    verified_vendors: number;
+    unverified_vendors: number;
+  };
+  recentVendors: any[];
+  orderStats: {
+    total_orders: number;
+    total_revenue: number;
+    pending_orders: number;
+    processing_orders: number;
+    completed_orders: number;
+    cancelled_orders: number;
+  };
+}
+
+const AdminDashboard: React.FC = () => {
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Set up token refresh interval
+  useEffect(() => {
+    // Refresh token on component mount
+    authService.refreshTokenIfNeeded();
+
+    // Set up an interval to refresh the token
+    const intervalId = setInterval(() => {
+      authService.refreshTokenIfNeeded();
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    // Clear interval on component unmount
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  // Refresh token when path changes (e.g., navigating to Orders section)
+  useEffect(() => {
+    const refreshToken = async () => {
+      await authService.refreshTokenIfNeeded();
+    };
+
+    refreshToken();
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Check for token first
+        const token = authService.getToken();
+        if (!token) {
+          console.error('No authentication token available');
+          setError('Authentication required. Please sign in.');
+          setLoading(false);
+          setTimeout(() => navigate('/signin'), 2000);
+          return;
+        }
+
+        // Get current user data - needs to happen before admin check
+        const user = authService.getCurrentUser();
+        if (!user) {
+          console.error('User data not found');
+          setError('User data not found. Please sign in again.');
+          setLoading(false);
+          setTimeout(() => {
+            authService.logout();
+            navigate('/signin');
+          }, 2000);
+          return;
+        }
+
+        // Set user data first so we can show info in UI
+        setUserData(user);
+
+        // Add debug log to see what user data we actually have
+        console.log('Current user data:', user);
+        console.log('User role:', user.role);
+        console.log('Is admin flag:', user.is_admin);
+
+        // Special handling for admin check
+        const isAdmin = user.role === "admin" || user.is_admin === true || user.is_admin === "true" ||
+                       user.is_admin === "t" || user.is_admin === 1 || user.is_admin === "1";
+
+        if (!isAdmin) {
+          console.error('Access denied: User is not an admin, role:', user.role);
+          setError(`Access denied: Admin privileges required. Your role is ${user.role}.`);
+          setLoading(false);
+          setTimeout(() => navigate('/dashboard'), 3000); // Redirect to main dashboard
+          return;
+        }
+
+        // Make sure token is fresh before making API call
+        await authService.refreshTokenIfNeeded();
+
+        // Log the token for debugging purposes
+        console.log('Using token for admin dashboard:', token ? 'Token exists' : 'No token');
+
+        // Fetch real dashboard data
+        const dashboardData = await adminService.getDashboard();
+        setStats(dashboardData);
+        setError(null);
+      } catch (error: any) {
+        console.error('Error fetching dashboard data:', error);
+
+        // Special handling for authentication errors
+        if (error.message?.includes('authentication') || error.message?.includes('sign in')) {
+          setError(error.message || 'Authentication error. Please sign in again.');
+          setTimeout(() => {
+            authService.logout();
+            navigate('/signin');
+          }, 2000);
+        } else {
+          setError(error.message || 'Failed to load dashboard data');
+        }
+
+        // Set default empty stats to avoid null checks
+        setStats({
+          userCounts: { total_users: 0, customers: 0, vendors: 0, admins: 0 },
+          vendorStatus: { active_vendors: 0, inactive_vendors: 0, verified_vendors: 0, unverified_vendors: 0 },
+          recentVendors: [],
+          orderStats: {
+            total_orders: 0,
+            total_revenue: 0,
+            pending_orders: 0,
+            processing_orders: 0,
+            completed_orders: 0,
+            cancelled_orders: 0
+          }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  if (error && !stats) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-[400px]">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+        <button
+          className="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex">
+      <AdminSidebar />
+      <div className="flex-1 ml-64">
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded relative" role="alert">
+            <strong className="font-bold">Warning: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+        <Routes>
+          <Route path="/" element={<DashboardOverview userData={userData} stats={stats} />} />
+          <Route path="/vendors" element={<VendorManagement />} />
+          <Route path="/vendors/:id" element={<VendorDetails />} />
+          <Route path="/users" element={<UserManagement />} />
+          <Route path="/products" element={<ProductsManager />} />
+          <Route path="/orders" element={<ShippingDashboard />} />
+          <Route path="/shipping" element={<BatchShipping />} />
+          <Route path="/database" element={<DatabaseAdminPanel />} />
+          <Route path="/cache" element={<CacheManager />} />
+          <Route path="/settings" element={<div>Settings Page</div>} />
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Routes>
+      </div>
+    </div>
+  );
+};
 
 const AdminSidebar: React.FC = () => {
   const location = useLocation();
@@ -182,8 +395,68 @@ const DashboardOverview: React.FC<{ userData: any, stats: DashboardStats | null 
             </div>
           </div>
 
-          {/* Other sections */}
-          {/* ... */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Recent Vendors */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Recent Vendors</h2>
+                <Link to="/admin/vendors" className="text-purple-600 text-sm font-medium hover:underline">
+                  View All
+                </Link>
+              </div>
+              {stats.recentVendors && stats.recentVendors.length > 0 ? (
+                <div className="space-y-3">
+                  {stats.recentVendors.map((vendor) => (
+                    <div key={vendor.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center mr-3">
+                          {vendor.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium">{vendor.name}</p>
+                          <p className="text-sm text-gray-500">{vendor.email}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          vendor.vendor_info?.isVerified
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {vendor.vendor_info?.isVerified ? 'Verified' : 'Pending'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">No recent vendors to display.</p>
+              )}
+            </div>
+
+            {/* Order Statistics */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h2 className="text-lg font-semibold mb-4">Order Statistics</h2>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total Orders</span>
+                  <span className="font-medium">{stats.orderStats.total_orders}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total Revenue</span>
+                  <span className="font-medium">${stats.orderStats.total_revenue?.toFixed(2) || '0.00'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Pending Orders</span>
+                  <span className="font-medium">{stats.orderStats.pending_orders}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Completed Orders</span>
+                  <span className="font-medium">{stats.orderStats.completed_orders}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
