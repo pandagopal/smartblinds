@@ -78,7 +78,7 @@ RETURNING *;
 
 // Get a user by email
 const getUserByEmailSQL = `
-SELECT u.user_id ,u.email,u.password_hash,u.first_name,u.last_name,u.phone,u.is_admin,u.is_active,u.last_login,u.auth_token,u.reset_token,u.reset_token_expires,u.verification_token,u.is_verified,u.is_listing_active,
+SELECT u.user_id ,u.email,u.password_hash,u.first_name,u.last_name,u.phone,u.is_admin,u.is_active,u.last_login,u.auth_token,u.reset_token,u.reset_token_expires,u.verification_token,u.is_verified,u.is_listing_active,u.role,
   json_build_object(
     'businessName', vi.business_name,
     'businessDescription', vi.business_description,
@@ -99,7 +99,7 @@ SELECT * FROM blinds.users WHERE email = $1;
 
 // Get a user by ID
 const getUserByIdSQL = `
-SELECT u.user_id ,u.email,u.password_hash,u.first_name,u.last_name,u.phone,u.is_admin,u.is_active,u.last_login,u.auth_token,u.reset_token,u.reset_token_expires,u.verification_token,u.is_verified,u.is_listing_active,
+SELECT u.user_id ,u.email,u.password_hash,u.first_name,u.last_name,u.phone,u.is_admin,u.is_active,u.last_login,u.auth_token,u.reset_token,u.reset_token_expires,u.verification_token,u.is_verified,u.is_listing_active,u.role,
   json_build_object(
     'businessName', vi.business_name,
     'businessDescription', vi.business_description,

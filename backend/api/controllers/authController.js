@@ -73,7 +73,7 @@ const register = asyncHandler(async (req, res, next) => {
         id: user.user_id,
         name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
         email: user.email,
-        role: user.is_admin ? 'admin' : 'customer'
+        role: user.role ? 'admin' : 'customer'
       }
     });
   } catch (error) {
@@ -139,7 +139,7 @@ const login = asyncHandler(async (req, res, next) => {
         id: user.user_id,
         name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
         email: user.email,
-        role: user.is_admin ? 'admin' : 'customer',
+        role: user.role ? 'admin' : 'customer',
         phone: user.phone,
         profileImage: user.profile_image
       }
@@ -173,7 +173,7 @@ const getMe = asyncHandler(async (req, res, next) => {
       id: user.user_id,
       name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
       email: user.email,
-      role: user.is_admin ? 'admin' : 'customer',
+      role: user.role ? 'admin' : 'customer',
       phone: user.phone,
       profileImage: user.profile_image
     }
@@ -292,7 +292,7 @@ const updateProfile = asyncHandler(async (req, res, next) => {
       id: updatedUser.user_id,
       name: `${updatedUser.first_name || ''} ${updatedUser.last_name || ''}`.trim(),
       email: updatedUser.email,
-      role: updatedUser.is_admin ? 'admin' : 'customer',
+      role: updatedUser.role ? 'admin' : 'customer',
       phone: updatedUser.phone,
       profileImage: updatedUser.profile_image
     }

@@ -253,7 +253,7 @@ const userQueries = {
    */
   getUserById: async (userId) => {
     const query = `
-      SELECT user_id, email, first_name, last_name, phone, last_login, is_admin, is_active, created_at
+      SELECT user_id, email, first_name, last_name, phone, last_login, is_admin, is_active, created_at,role
       FROM blinds.users
       WHERE user_id = $1
     `;
@@ -274,7 +274,7 @@ const userQueries = {
    */
   getUserByEmail: async (email) => {
     const query = `
-      SELECT user_id, email, password_hash, first_name, last_name, phone, last_login, is_admin, is_active, created_at
+      SELECT user_id, email, password_hash, first_name, last_name, phone, last_login, is_admin, is_active, created_at,role
       FROM blinds.users
       WHERE email = $1
     `;

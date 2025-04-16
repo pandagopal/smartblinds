@@ -131,7 +131,7 @@ exports.optionalAuth = asyncHandler(async (req, res, next) => {
         if (adminResult.rows.length > 0) {
           req.user = vendorResult.rows[0];
           // Map PostgreSQL field is_admin to role for compatibility
-          req.user.role = req.user.is_admin ? 'admin' : 'vendor';
+          req.user.role = req.user.role ? 'admin' : 'vendor';
 
           req.impersonator = adminResult.rows[0];
           req.isImpersonation = true;
