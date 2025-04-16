@@ -22,7 +22,6 @@
 
 ## Architecture
 - Database access is through PostgreSQL's pg pool
-- Fallback to CSV is implemented in dataService.js if PostgreSQL is unavailable
 - Tables are created on application startup via dbInit.js
 - Default data (roles, permissions, admin user) is created if not exists
 

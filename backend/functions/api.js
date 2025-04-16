@@ -2,7 +2,7 @@ const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const { initializeDataService } = require('../utils/dataService');
-const runDataGeneration = require('../scripts/generateCsvData');
+
 const { initializeDatabase } = require('../utils/dbInit');
 
 // Import routes
@@ -27,7 +27,6 @@ const app = express();
     await initializeDatabase();
 
     // Generate CSV data for backup
-    await runDataGeneration();
 
     console.log('Serverless function data service initialized');
   } catch (error) {

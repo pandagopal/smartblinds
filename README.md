@@ -111,7 +111,6 @@ Here are the step-by-step instructions to set up and build the project locally o
     ```
     Frontend: bun run dev
     Backend: bun run server
-    Generate CSV data: bun run generate:csv
     ```
    - This will start the Vite development server
 
