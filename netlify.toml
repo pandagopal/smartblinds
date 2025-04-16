@@ -1,0 +1,54 @@
+[build]
+  command = "bun run build"
+  publish = "dist"
+  functions = "lambda"
+
+[build.environment]
+  NODE_VERSION = "18"
+  BUN_VERSION = "1.0.1"
+
+[dev]
+  command = "bun run dev"
+  port = 5173
+  targetPort = 5173
+  publish = "dist"
+  autoLaunch = true
+  framework = "vite"
+
+# Handle frontend routes with client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  conditions = {Role = ["anonymous", "user"]}
+
+# Handle API requests in production - proxy to a serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Environmental variables
+[context.production.environment]
+  NODE_ENV = "production"
+  API_BASE_URL = "/.netlify/functions/api"
+
+[context.deploy-preview.environment]
+  NODE_ENV = "production"
+  API_BASE_URL = "/.netlify/functions/api"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["pg-native"]
+
+[images]
+  remote_images = [
+    "https://ext.same-assets.com/**"
+  ]
+
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="40" viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
+  <!-- Diamond Shape -->
+  <polygon points="20,5 35,20 20,35 5,20" fill="#c41230" />
+
+  <!-- Window Blind Lines -->
+  <line x1="12" y1="12" x2="28" y2="12" stroke="white" stroke-width="1.5" />
+  <line x1="12" y1="16" x2="28" y2="16" stroke="white" stroke-width="1.5" />
+  <line x1="12" y1="20" x2="28" y2="20" stroke="white" stroke-width="1.5" />
+  <line x1="12" y1="24" x2="28" y2="24" stroke="white" stroke-width="1.5" />
+  <line x1="12" y1="28" x2="28" y2="28" stroke="white" stroke-width="1.5" />
+
+  <!-- Smart Blinds Text -->
+  <text x="45" y="24" font-family="Arial, sans-serif" font-weight="bold" font-size="18" fill="#c41230">Smart Blinds</text>
+</svg>

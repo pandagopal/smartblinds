@@ -1,0 +1,25 @@
+# robots.txt for SmartBlinds.com
+User-agent: *
+Allow: /
+
+# Allow all search engines to access these directories
+Allow: /products/
+Allow: /category/
+Allow: /blog/
+Allow: /marketplace/
+Allow: /measure-install/
+Allow: /help/
+
+# Disallow admin areas
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /signin/
+Disallow: /cart/
+
+# Disallow specific parameters
+Disallow: /*?source=*
+Disallow: /*?utm_*
+
+# Sitemap location
+Sitemap: https://smartblinds.com/sitemap.xml
