@@ -10,9 +10,24 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(50),
   social_provider VARCHAR(50),
   social_id VARCHAR(255),
+<<<<<<< HEAD
   profile_image VARCHAR(255),
   reset_password_token VARCHAR(255),
   reset_password_expires TIMESTAMP,
+=======
+  social_token VARCHAR(255),
+  social_refresh_token VARCHAR(255),
+  social_expires_at TIMESTAMP,
+  profile_image VARCHAR(255),
+  reset_password_token VARCHAR(255),
+  reset_password_expires TIMESTAMP,
+  email_verified BOOLEAN DEFAULT FALSE,
+  email_verification_token VARCHAR(255),
+  last_login TIMESTAMP,
+  login_attempts INTEGER DEFAULT 0,
+  account_locked BOOLEAN DEFAULT FALSE,
+  account_locked_until TIMESTAMP,
+>>>>>>> auth-system
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -60,12 +75,53 @@ CREATE TABLE IF NOT EXISTS addresses (
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_addresses_user ON addresses(user_id);
 
+<<<<<<< HEAD
+=======
+-- Create session table for better token management
+CREATE TABLE IF NOT EXISTS sessions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(255) NOT NULL UNIQUE,
+  refresh_token VARCHAR(255) UNIQUE,
+  ip_address VARCHAR(50),
+  user_agent TEXT,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+CREATE INDEX IF NOT EXISTS idx_sessions_refresh_token ON sessions(refresh_token);
+
+-- Table for storing user OAuth accounts (multiple social providers per user)
+CREATE TABLE IF NOT EXISTS user_oauth_accounts (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider VARCHAR(50) NOT NULL,
+  provider_user_id VARCHAR(255) NOT NULL,
+  access_token TEXT,
+  refresh_token TEXT,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(provider, provider_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_user ON user_oauth_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_provider ON user_oauth_accounts(provider, provider_user_id);
+
+>>>>>>> auth-system
 -- Create default admin user if not exists
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@smartblindshub.com') THEN
+<<<<<<< HEAD
     INSERT INTO users (name, email, password, role)
     VALUES ('Admin User', 'admin@smartblindshub.com', '$2b$10$X/4aCzKT0vTLgJHv5XmHzuBDVDPiGSgPCgMcH2DZ7t7N4Qrz9kDJu', 'admin');
+=======
+    INSERT INTO users (name, email, password, role, email_verified)
+    VALUES ('Admin User', 'admin@smartblindshub.com', '$2b$10$X/4aCzKT0vTLgJHv5XmHzuBDVDPiGSgPCgMcH2DZ7t7N4Qrz9kDJu', 'admin', TRUE);
+>>>>>>> auth-system
   END IF;
 END
 $$;

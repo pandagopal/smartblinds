@@ -252,15 +252,12 @@ const User = {
       );
 
       if (result.rows.length > 0) {
-        const user = result.rows[0];
-        // Add virtual property for fullName
-        user.fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-        return user;
+        return result.rows[0];
       }
 
       return null;
     } catch (error) {
-      console.error('[UserModel] Error setting reset token:', error);
+      console.error('[UserModel] Error setting password reset token:', error);
       throw error;
     }
   },
@@ -268,7 +265,7 @@ const User = {
   /**
    * Find user by reset token
    * @param {string} token - Reset token
-   * @returns {Promise<Object|null>} User or null
+   * @returns {Promise<Object|null>} User object or null
    */
   findByResetToken: async (token) => {
     console.log(`[UserModel] Finding user by reset token`);
@@ -277,10 +274,7 @@ const User = {
       const result = await db.query(userQueries.findByResetToken, [token]);
 
       if (result.rows.length > 0) {
-        const user = result.rows[0];
-        // Add virtual property for fullName
-        user.fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-        return user;
+        return result.rows[0];
       }
 
       return null;
@@ -291,88 +285,10 @@ const User = {
   },
 
   /**
-   * Update user details
-   * @param {string} id - User ID
-   * @param {Object} updateData - Data to update
-   * @returns {Promise<Object|null>} Updated user or null
+   * Generate a signed JWT token for a user
+   * @param {string} userId - User ID
+   * @returns {string} JWT token
    */
-  findByIdAndUpdate: async (id, updateData) => {
-    console.log(`[UserModel] Updating user with ID: ${id}`);
-    let client;
-
-    try {
-      // Get client for transaction
-      client = await db.getClient();
-
-      // Start transaction
-      await client.query('BEGIN');
-
-      let result;
-
-      // Update basic user info
-      if (updateData.name || updateData.email || updateData.phone) {
-        const nameParts = updateData.name ? updateData.name.split(' ') : null;
-        const firstName = nameParts ? nameParts[0] : null;
-        const lastName = nameParts ? nameParts.slice(1).join(' ') : null;
-
-        result = await client.query(
-          userQueries.updateUser,
-          [
-            id,
-            firstName,
-            lastName,
-            updateData.email ? updateData.email.toLowerCase() : null,
-            updateData.phone || null
-          ]
-        );
-      }
-
-      // Update password if provided
-      if (updateData.password) {
-        result = await client.query(
-          userQueries.updatePassword,
-          [
-            id,
-            updateData.password
-          ]
-        );
-      }
-
-      // Clear reset token if specified
-      if (updateData.resetPasswordToken === null) {
-        result = await client.query(
-          userQueries.clearResetToken,
-          [id]
-        );
-      }
-
-      // Commit transaction
-      await client.query('COMMIT');
-
-      if (result && result.rows.length > 0) {
-        const user = result.rows[0];
-        // Add virtual property for fullName
-        user.fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-        return user;
-      }
-
-      return null;
-    } catch (error) {
-      // Rollback transaction on error
-      if (client) {
-        await client.query('ROLLBACK');
-      }
-      console.error('[UserModel] Error updating user:', error);
-      throw error;
-    } finally {
-      // Always release the client
-      if (client) {
-        client.release();
-      }
-    }
-  },
-
-  // Generate JWT token method
   getSignedJwtToken: (userId) => {
     return generateToken(userId);
   }

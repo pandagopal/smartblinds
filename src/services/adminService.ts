@@ -1,4 +1,5 @@
 import { authService } from './authService';
+import { handleSessionExpired } from '../utils/authUtils';
 
 interface Vendor {
   id: number;
@@ -99,6 +100,33 @@ const apiRequest = async <T>(
     try {
       const token = authService.getToken();
 
+      // Enhanced token debugging
+      if (token) {
+        try {
+          // Check if we can decode the token
+          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+          const expTime = new Date(tokenPayload.exp * 1000);
+          const now = new Date();
+          const timeLeft = expTime.getTime() - now.getTime();
+
+          console.log(`[Admin API] Token expires at ${expTime.toLocaleString()}, ${Math.round(timeLeft / 1000 / 60)} minutes remaining`);
+
+          // If token is about to expire in less than 5 minutes, try to refresh it
+          if (timeLeft < 5 * 60 * 1000 && timeLeft > 0) {
+            console.log('[Admin API] Token about to expire, attempting to refresh');
+            const refreshed = await authService.refreshToken();
+            if (refreshed) {
+              console.log('[Admin API] Token refreshed successfully');
+              // Get the new token
+              const newToken = authService.getToken();
+              if (newToken) token = newToken;
+            }
+          }
+        } catch (error) {
+          console.error('[Admin API] Error parsing token:', error);
+        }
+      }
+
       if (!token) {
         throw new Error('No authentication token available');
       }
@@ -111,7 +139,7 @@ const apiRequest = async <T>(
         }
       };
 
-      if (body) {
+      if (method !== 'GET' && body) {
         options.body = JSON.stringify(body);
       }
 
@@ -123,7 +151,22 @@ const apiRequest = async <T>(
       if (contentType && contentType.includes('text/html')) {
         console.error('[Admin API] Received HTML response instead of JSON - likely session expired');
 
-        // Don't automatically logout - just report the error
+        // Try to refresh the token and retry immediately
+        if (attempt === 0) {
+          console.log('[Admin API] Attempting token refresh and retry');
+          const refreshed = await authService.refreshToken();
+          if (refreshed) {
+            console.log('[Admin API] Token refreshed successfully, retrying request');
+            continue; // Skip to next loop iteration to retry with new token
+          }
+        }
+
+        // If we get here, the token refresh failed or this is a retry attempt
+        if (window.confirm('Your session has expired. Would you like to sign in again?')) {
+          handleSessionExpired();
+        }
+
+        // Throw error to be caught by caller
         throw new Error('Your session has expired. Please sign in again.');
       }
 
@@ -133,6 +176,20 @@ const apiRequest = async <T>(
 
         if (response.status === 401) {
           console.error('[Admin API] Authentication error:', errorMessage);
+
+          // Check if we should try to refresh the token
+          if (attempt === 0) {
+            const refreshed = await authService.refreshToken();
+            if (refreshed) {
+              console.log('[Admin API] Token refreshed after 401, retrying request');
+              continue; // Skip to next loop iteration to retry with new token
+            }
+          }
+
+          // If we get here, token refresh failed or this is a retry attempt
+          if (window.confirm('Authentication error. Would you like to sign in again?')) {
+            handleSessionExpired();
+          }
 
           // Don't automatically logout - just report the error
           throw new Error('Authentication error - please sign in again');

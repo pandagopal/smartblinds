@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { HashRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route, Link, useNavigate, useParams, Navigate } from 'react-router-dom'
 import './App.css'
 import ProductList from './components/ProductList'
 import ProductDetailView from './components/ProductDetailView'
@@ -42,8 +42,51 @@ import SalesDashboard from './components/dashboards/SalesDashboard';
 import InstallerDashboard from './components/dashboards/InstallerDashboard';
 import DashboardRouter from './components/DashboardRouter';
 import { api } from './services/api';
-import { authService } from './services/authService'; // Import authService
-import { UserRole } from './services/authService'; // Import UserRole from authService
+import { authService, UserRole } from './services/authService'; // Import UserRole from authService
+// Import new auth-related components
+import VerifyEmail from './components/auth/VerifyEmail';
+import ChangePassword from './components/account/ChangePassword';
+import SessionErrorBoundary from './components/SessionErrorBoundary';
+
+// ProtectedRoute component to handle role-based access control
+interface ProtectedRouteProps {
+  element: React.ReactNode;
+  allowedRoles: UserRole[];
+  redirectPath?: string;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  element,
+  allowedRoles,
+  redirectPath = '/signin'
+}) => {
+  const isAuthenticated = authService.isAuthenticated();
+  const user = authService.getCurrentUser();
+  const hasRequiredRole = user && allowedRoles.some(role => user.role === role);
+
+  console.log('[ProtectedRoute] Auth check:', {
+    isAuthenticated,
+    userRole: user?.role,
+    allowedRoles,
+    hasRequiredRole
+  });
+
+  if (!isAuthenticated) {
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  if (!hasRequiredRole) {
+    // If user is logged in but doesn't have the right role, send them to appropriate dashboard
+    if (user) {
+      // Get the proper dashboard URL based on user role
+      const dashboardUrl = authService.getDashboardUrl();
+      return <Navigate to={dashboardUrl} replace />;
+    }
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  return <>{element}</>;
+};
 
 // New component for handling role-based dashboard redirects
 const DashboardRedirect = () => {
@@ -53,8 +96,9 @@ const DashboardRedirect = () => {
   useEffect(() => {
     // Get current user from auth service
     const user = authService.getCurrentUser();
+    const isAuthenticated = authService.isAuthenticated();
 
-    if (!user || !authService.isAuthenticated()) {
+    if (!user || !isAuthenticated) {
       navigate('/signin');
       return;
     }
@@ -70,7 +114,7 @@ const DashboardRedirect = () => {
       navigate('/installer');
     } else {
       // Default to customer dashboard
-      navigate('/dashboard/customer');
+      navigate('/account');
     }
 
     setLoading(false);
@@ -231,196 +275,215 @@ function App() {
         <meta name="theme-color" content="#c41230" />
       </Helmet>
       <ScrollToTop />
-      <div className="flex flex-col min-h-screen">
-        <Header />
+      <SessionErrorBoundary>
+        <div className="flex flex-col min-h-screen">
+          <Header />
 
-        <main className="flex-grow" id="main-content" role="main">
-          <Routes>
-            <Route path="/" element={
-              <div className="container mx-auto px-4 pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  <div className="md:col-span-2 bg-primary-red text-white p-8 rounded-lg">
-                    <div className="max-w-lg">
-                      <div className="bg-[#b31029] text-white inline-block px-2 py-1 rounded text-xs font-bold mb-3">
-                        SUPER SPRING SAVINGS
+          <main className="flex-grow" id="main-content" role="main">
+            <Routes>
+              <Route path="/" element={
+                <div className="container mx-auto px-4 pt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="md:col-span-2 bg-primary-red text-white p-8 rounded-lg">
+                      <div className="max-w-lg">
+                        <div className="bg-[#b31029] text-white inline-block px-2 py-1 rounded text-xs font-bold mb-3">
+                          SUPER SPRING SAVINGS
+                        </div>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4">UP TO 40% OFF SITEWIDE</h2>
+                        <button className="bg-white text-primary-red font-bold py-2 px-6 rounded hover:bg-gray-100 text-sm">
+                          SHOP NOW
+                        </button>
+                        <p className="mt-3 text-sm">SALE ENDS 5/20</p>
                       </div>
-                      <h2 className="text-4xl md:text-5xl font-bold mb-4">UP TO 40% OFF SITEWIDE</h2>
-                      <button className="bg-white text-primary-red font-bold py-2 px-6 rounded hover:bg-gray-100 text-sm">
-                        SHOP NOW
-                      </button>
-                      <p className="mt-3 text-sm">SALE ENDS 5/20</p>
+                    </div>
+
+                    <div className="flex flex-col space-y-6">
+                      <div className="bg-primary-red text-white p-4 rounded-lg">
+                        <div className="mb-2">
+                          <h3 className="font-bold text-sm">PRO MEASURE BY EXPERTS</h3>
+                          <p className="text-xs">Let the pros handle it</p>
+                        </div>
+                        <div className="flex mb-3">
+                          <img
+                            src="https://ext.same-assets.com/2035588304/1867392818.jpeg"
+                            alt="Pro measuring service"
+                            className="w-full h-24 object-cover rounded"
+                          />
+                        </div>
+                        <button className="w-full bg-white text-primary-red text-xs text-center py-1 px-2 rounded font-medium">
+                          CHECK AVAILABILITY
+                        </button>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <h3 className="font-bold text-primary-red text-sm mb-1">BIG SPRING SPECIAL BUYS</h3>
+                        <div className="mb-3">
+                          <img
+                            src="https://ext.same-assets.com/2035588304/2395952654.jpeg"
+                            alt="Special buys on blinds"
+                            className="w-full h-24 object-cover rounded"
+                          />
+                        </div>
+                        <button className="w-full bg-primary-red text-white text-xs text-center py-1 px-2 rounded font-medium">
+                          SHOP NOW
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col space-y-6">
-                    <div className="bg-primary-red text-white p-4 rounded-lg">
-                      <div className="mb-2">
-                        <h3 className="font-bold text-sm">PRO MEASURE BY EXPERTS</h3>
-                        <p className="text-xs">Let the pros handle it</p>
-                      </div>
-                      <div className="flex mb-3">
-                        <img
-                          src="https://ext.same-assets.com/2035588304/1867392818.jpeg"
-                          alt="Pro measuring service"
-                          className="w-full h-24 object-cover rounded"
-                        />
-                      </div>
-                      <button className="w-full bg-white text-primary-red text-xs text-center py-1 px-2 rounded font-medium">
-                        CHECK AVAILABILITY
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                    <div className="text-center">
+                      <h3 className="text-lg font-medium mb-2">Rather have a pro do it?</h3>
+                      <p className="text-sm text-gray-600 mb-4">Let our professional measure and install team handle everything so that you don't have to</p>
+                      <button className="border border-primary-red text-primary-red px-4 py-1 rounded text-sm hover:bg-red-50">
+                        Check Availability
                       </button>
                     </div>
 
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <h3 className="font-bold text-primary-red text-sm mb-1">BIG SPRING SPECIAL BUYS</h3>
-                      <div className="mb-3">
-                        <img
-                          src="https://ext.same-assets.com/2035588304/2395952654.jpeg"
-                          alt="Special buys on blinds"
-                          className="w-full h-24 object-cover rounded"
-                        />
-                      </div>
-                      <button className="w-full bg-primary-red text-white text-xs text-center py-1 px-2 rounded font-medium">
-                        SHOP NOW
+                    <div className="text-center">
+                      <h3 className="text-lg font-medium mb-2">Buy Risk-Free</h3>
+                      <p className="text-sm text-gray-600 mb-4">Get the perfect fit and our 100% satisfaction guarantee</p>
+                      <button className="border border-primary-red text-primary-red px-4 py-1 rounded text-sm hover:bg-red-50">
+                        Read Our Guarantee
+                      </button>
+                    </div>
+
+                    <div className="text-center">
+                      <h3 className="text-lg font-medium mb-2">Find your Inspiration</h3>
+                      <p className="text-sm text-gray-600 mb-4">See real customer photos and shop the looks your local stores don't carry</p>
+                      <button className="border border-primary-red text-primary-red px-4 py-1 rounded text-sm hover:bg-red-50">
+                        Shop Our Gallery
                       </button>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                  <div className="text-center">
-                    <h3 className="text-lg font-medium mb-2">Rather have a pro do it?</h3>
-                    <p className="text-sm text-gray-600 mb-4">Let our professional measure and install team handle everything so that you don't have to</p>
-                    <button className="border border-primary-red text-primary-red px-4 py-1 rounded text-sm hover:bg-red-50">
-                      Check Availability
-                    </button>
+                  <div className="text-center mb-12">
+                    <h2 className="text-2xl font-medium mb-2">We are the Experts in Custom Blinds, Shades and Shutters</h2>
+                    <p className="text-gray-600 max-w-3xl mx-auto">
+                      We're 100% online so the showroom is in your pocket. Whether you're a DIY warrior or prefer to use our professional services, you can count on us to deliver high-quality blinds, shades, and shutters at an affordable price.
+                    </p>
                   </div>
 
-                  <div className="text-center">
-                    <h3 className="text-lg font-medium mb-2">Buy Risk-Free</h3>
-                    <p className="text-sm text-gray-600 mb-4">Get the perfect fit and our 100% satisfaction guarantee</p>
-                    <button className="border border-primary-red text-primary-red px-4 py-1 rounded text-sm hover:bg-red-50">
-                      Read Our Guarantee
-                    </button>
+                  <div className="mb-12">
+                    <h2 className="text-2xl font-medium mb-4 text-center">Save on Spring Styles</h2>
+                    <p className="text-center mb-6 text-sm">Shop All Deals</p>
+
+                    <ProductList limit={6} showFilters={false} />
                   </div>
 
-                  <div className="text-center">
-                    <h3 className="text-lg font-medium mb-2">Find your Inspiration</h3>
-                    <p className="text-sm text-gray-600 mb-4">See real customer photos and shop the looks your local stores don't carry</p>
-                    <button className="border border-primary-red text-primary-red px-4 py-1 rounded text-sm hover:bg-red-50">
-                      Shop Our Gallery
-                    </button>
+                  {/* New section for Vendor Marketplace */}
+                  <div className="mb-12">
+                    <h2 className="text-2xl font-medium mb-4 text-center">Marketplace Highlights</h2>
+                    <p className="text-center mb-6 text-sm">
+                      Discover unique products from our verified vendors
+                      <Link to="/marketplace" className="ml-2 text-primary-red hover:underline">
+                        View All
+                      </Link>
+                    </p>
+
+                    <VendorListingProducts limit={6} showFilters={false} />
                   </div>
+
+                  <CategorySection />
                 </div>
+              } />
 
-                <div className="text-center mb-12">
-                  <h2 className="text-2xl font-medium mb-2">We are the Experts in Custom Blinds, Shades and Shutters</h2>
-                  <p className="text-gray-600 max-w-3xl mx-auto">
-                    We're 100% online so the showroom is in your pocket. Whether you're a DIY warrior or prefer to use our professional services, you can count on us to deliver high-quality blinds, shades, and shutters at an affordable price.
-                  </p>
+              <Route path="/products" element={
+                <div className="container mx-auto px-4 py-6">
+                  <h1 className="text-2xl font-semibold mb-6">All Products</h1>
+                  <ProductList />
                 </div>
+              } />
 
-                <div className="mb-12">
-                  <h2 className="text-2xl font-medium mb-4 text-center">Save on Spring Styles</h2>
-                  <p className="text-center mb-6 text-sm">Shop All Deals</p>
-
-                  <ProductList limit={6} showFilters={false} />
+              {/* Add new route for vendor marketplace */}
+              <Route path="/marketplace" element={
+                <div className="container mx-auto px-4 py-6">
+                  <h1 className="text-2xl font-semibold mb-6">Vendor Marketplace</h1>
+                  <VendorListingProducts />
                 </div>
+              } />
 
-                {/* New section for Vendor Marketplace */}
-                <div className="mb-12">
-                  <h2 className="text-2xl font-medium mb-4 text-center">Marketplace Highlights</h2>
-                  <p className="text-center mb-6 text-sm">
-                    Discover unique products from our verified vendors
-                    <Link to="/marketplace" className="ml-2 text-primary-red hover:underline">
-                      View All
-                    </Link>
-                  </p>
-
-                  <VendorListingProducts limit={6} showFilters={false} />
+              <Route path="/product/configure/:id" element={<ProductConfiguratorWrapper />} />
+              <Route path="/product/:id" element={<ProductDetailView />} />
+              <Route path="/category/:slug" element={
+                <div className="container mx-auto px-4 py-6">
+                  {/* Update this to explicitly reference the slug for debugging */}
+                  <ProductList key={window.location.pathname} showFilters={true} />
                 </div>
+              } />
 
-                <CategorySection />
-              </div>
-            } />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout" element={<EnhancedCheckoutPage />} />
+              <Route path="/order-confirmation" element={
+                <div className="container mx-auto px-4 py-8">
+                  <OrderConfirmationPage />
+                </div>
+              } />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/measure-install" element={<MeasureInstallPage />} />
+              <Route path="/order-tracking" element={<OrderTrackingPage />} />
+              <Route path="/create-estimate" element={<CreateEstimatePage />} />
 
-            <Route path="/products" element={
-              <div className="container mx-auto px-4 py-6">
-                <h1 className="text-2xl font-semibold mb-6">All Products</h1>
-                <ProductList />
-              </div>
-            } />
+              {/* Authentication routes */}
+              <Route path="/signin" element={<SignInPage />} />
+              <Route path="/sign-in" element={<SignInPage />} />
+              <Route path="/login" element={<SignInPage />} />
 
-            {/* Add new route for vendor marketplace */}
-            <Route path="/marketplace" element={
-              <div className="container mx-auto px-4 py-6">
-                <h1 className="text-2xl font-semibold mb-6">Vendor Marketplace</h1>
-                <VendorListingProducts />
-              </div>
-            } />
+              {/* New auth routes */}
+              <Route path="/verify-email/:token" element={<VerifyEmail />} />
+              <Route path="/reset-password/:token" element={<SignInPage />} />
 
-            <Route path="/product/configure/:id" element={<ProductConfiguratorWrapper />} />
-            <Route path="/product/:id" element={<ProductDetailView />} />
-            <Route path="/category/:slug" element={
-              <div className="container mx-auto px-4 py-6">
-                {/* Update this to explicitly reference the slug for debugging */}
-                <ProductList key={window.location.pathname} showFilters={true} />
-              </div>
-            } />
+              {/* User account routes */}
+              <Route path="/account/*" element={<UserAccountPage />} />
+              <Route
+                path="/account/change-password"
+                element={
+                  <ProtectedRoute
+                    element={<ChangePassword />}
+                    allowedRoles={[UserRole.CUSTOMER, UserRole.ADMIN, UserRole.VENDOR, UserRole.SALES_PERSON, UserRole.INSTALLER]}
+                  />
+                }
+              />
 
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/checkout" element={<EnhancedCheckoutPage />} />
-            <Route path="/order-confirmation" element={
-              <div className="container mx-auto px-4 py-8">
-                <OrderConfirmationPage />
-              </div>
-            } />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="/measure-install" element={<MeasureInstallPage />} />
-            <Route path="/order-tracking" element={<OrderTrackingPage />} />
-            <Route path="/create-estimate" element={<CreateEstimatePage />} />
-            <Route path="/signin" element={<SignInPage />} />
-            <Route path="/sign-in" element={<SignInPage />} />
-            <Route path="/login" element={<SignInPage />} />
-            <Route path="/account/*" element={<UserAccountPage />} />
+              <Route path="/blog" element={<BlogLandingPage />} />
+              <Route path="/blog/:postId" element={<BlogPostPage />} />
+              <Route path="/compare" element={<ProductComparisonPage />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
 
-            <Route path="/blog" element={<BlogLandingPage />} />
-            <Route path="/blog/:postId" element={<BlogPostPage />} />
-            <Route path="/compare" element={<ProductComparisonPage />} />
-            <Route path="/wishlist" element={<WishlistPage />} />
+              {/* Role-based dashboard redirects */}
+              <Route path="/dashboard" element={<DashboardRedirect />} />
 
-            {/* Role-based dashboard redirects */}
-            <Route path="/dashboard" element={<DashboardRedirect />} />
+              {/* Dashboard Router */}
+              <Route path="/dashboard/*" element={<DashboardRouter />} />
 
-            {/* Dashboard Router */}
-            <Route path="/dashboard/*" element={<DashboardRouter />} />
+              {/* Admin Dashboard and Management Routes */}
+              <Route path="/admin/*" element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={[UserRole.ADMIN]} />} />
 
-            {/* Admin Dashboard and Management Routes */}
-            <Route path="/admin/*" element={<AdminDashboard />} />
+              {/* Vendor Portal - Updated to use VendorRouter along with VendorDashboard */}
+              <Route path="/vendor" element={<ProtectedRoute element={<VendorDashboard />} allowedRoles={[UserRole.VENDOR]} />} />
+              <Route path="/vendor/*" element={<ProtectedRoute element={<VendorRouter />} allowedRoles={[UserRole.VENDOR]} />} />
 
-            {/* Vendor Portal - Updated to use VendorRouter along with VendorDashboard */}
-            <Route path="/vendor" element={<VendorDashboard />} />
-            <Route path="/vendor/*" element={<VendorRouter />} />
+              {/* Sales Person Dashboard */}
+              <Route path="/sales/*" element={<ProtectedRoute element={<SalesDashboard />} allowedRoles={[UserRole.SALES_PERSON]} />} />
 
-            {/* Sales Person Dashboard */}
-            <Route path="/sales/*" element={<SalesDashboard />} />
+              {/* Installer Dashboard */}
+              <Route path="/installer/*" element={<ProtectedRoute element={<InstallerDashboard />} allowedRoles={[UserRole.INSTALLER]} />} />
 
-            {/* Installer Dashboard */}
-            <Route path="/installer/*" element={<InstallerDashboard />} />
+              <Route path="*" element={
+                <div className="container mx-auto px-4 py-12 text-center">
+                  <h2 className="text-2xl font-semibold mb-4">Page Not Found</h2>
+                  <p className="mb-6">The page you're looking for doesn't exist or has been moved.</p>
+                  <Link to="/" className="px-4 py-2 bg-primary-red text-white rounded hover:bg-red-700 transition-colors">
+                    Return to Home
+                  </Link>
+                </div>
+              } />
+            </Routes>
+          </main>
 
-            <Route path="*" element={
-              <div className="container mx-auto px-4 py-12 text-center">
-                <h2 className="text-2xl font-semibold mb-4">Page Not Found</h2>
-                <p className="mb-6">The page you're looking for doesn't exist or has been moved.</p>
-                <Link to="/" className="px-4 py-2 bg-primary-red text-white rounded hover:bg-red-700 transition-colors">
-                  Return to Home
-                </Link>
-              </div>
-            } />
-          </Routes>
-        </main>
-
-        <Footer />
-      </div>
+          <Footer />
+        </div>
+      </SessionErrorBoundary>
     </Router>
   )
 }

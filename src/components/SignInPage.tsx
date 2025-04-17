@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { authService } from '../services/authService';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { authService, SocialProvider } from '../services/authService';
+import { checkForExpiredSession } from '../utils/authUtils';
 
 // Define environment variables
 const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || "dummy_id";
 const APPLE_CLIENT_ID = import.meta.env.VITE_APPLE_CLIENT_ID || "dummy.client.id";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy.client.id";
 
-// Create a simple social login button component to prevent errors
+// Create a simple social login button component
 const SocialLoginButton = ({ provider, onClick }: { provider: string, onClick: () => void }) => {
   let icon;
 
@@ -51,7 +53,11 @@ const SocialLoginButton = ({ provider, onClick }: { provider: string, onClick: (
 
 const SignInPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+
+  // From location state (for redirects)
+  const from = (location.state as any)?.from?.pathname || '/';
 
   // Login Form State
   const [loginEmail, setLoginEmail] = useState('');
@@ -73,65 +79,234 @@ const SignInPage: React.FC = () => {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState('');
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      const redirectTo = authService.getDashboardUrl() || '/';
+      navigate(redirectTo);
+    }
+  }, [navigate]);
+
+  // Add useEffect to check for expired session
+  useEffect(() => {
+    // Check if we were redirected here due to expired session
+    checkForExpiredSession();
+  }, []);
+
+  // Google login with OAuth
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+
+      // Load the Google Sign-In API script dynamically
+      const loadGoogleScript = () => {
+        return new Promise<void>((resolve, reject) => {
+          if (document.getElementById('google-auth-script')) {
+            resolve();
+            return;
+          }
+
+          const script = document.createElement('script');
+          script.id = 'google-auth-script';
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.async = true;
+          script.defer = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Google Sign-In script'));
+          document.body.appendChild(script);
+        });
+      };
+
+      await loadGoogleScript();
+
+      // Initialize Google Sign-In
+      // @ts-ignore - Google API not typed
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response: any) => {
+          try {
+            if (response.credential) {
+              // Call our backend with the ID token
+              const user = await authService.socialLogin('google', response.credential);
+              navigate(from);
+            }
+          } catch (error) {
+            console.error('Google login processing failed:', error);
+            setLoginError('Google login failed. Please try again.');
+            setIsLoading(false);
+          }
+        },
+        auto_select: false,
+      });
+
+      // @ts-ignore - Google API not typed
+      window.google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // Use Google One Tap fallback
+          // @ts-ignore - Google API not typed
+          window.google.accounts.id.renderButton(
+            document.getElementById('google-signin-button') || document.createElement('div'),
+            { theme: 'outline', size: 'large' }
+          );
+          setIsLoading(false);
+        }
+      });
+    } catch (error) {
+      console.error('Google login initialization failed:', error);
+      setLoginError('Google login failed. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Facebook login with OAuth
+  const handleFacebookLogin = async () => {
+    try {
+      setIsLoading(true);
+
+      // Load the Facebook SDK dynamically
+      const loadFacebookScript = () => {
+        return new Promise<void>((resolve, reject) => {
+          if (document.getElementById('facebook-auth-script')) {
+            resolve();
+            return;
+          }
+
+          window.fbAsyncInit = function() {
+            // @ts-ignore - FB SDK not typed
+            FB.init({
+              appId: FACEBOOK_APP_ID,
+              cookie: true,
+              xfbml: true,
+              version: 'v18.0'
+            });
+            resolve();
+          };
+
+          const script = document.createElement('script');
+          script.id = 'facebook-auth-script';
+          script.src = 'https://connect.facebook.net/en_US/sdk.js';
+          script.async = true;
+          script.defer = true;
+          script.onerror = () => reject(new Error('Failed to load Facebook SDK script'));
+          document.body.appendChild(script);
+        });
+      };
+
+      await loadFacebookScript();
+
+      // Login with Facebook and request permissions
+      // @ts-ignore - FB SDK not typed
+      FB.login(async function(response) {
+        if (response.authResponse) {
+          try {
+            // Call our backend with the access token
+            const user = await authService.socialLogin('facebook', response.authResponse.accessToken);
+            navigate(from);
+          } catch (error) {
+            console.error('Facebook login processing failed:', error);
+            setLoginError('Facebook login failed. Please try again.');
+          }
+        } else {
+          setLoginError('Facebook login was cancelled');
+        }
+        setIsLoading(false);
+      }, { scope: 'email,public_profile' });
+
+    } catch (error) {
+      console.error('Facebook login initialization failed:', error);
+      setLoginError('Facebook login failed. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Apple login with OAuth
+  const handleAppleLogin = async () => {
+    try {
+      setIsLoading(true);
+
+      // Load Apple Sign In JS
+      const loadAppleScript = () => {
+        return new Promise<void>((resolve, reject) => {
+          if (document.getElementById('apple-signin-script')) {
+            resolve();
+            return;
+          }
+
+          const script = document.createElement('script');
+          script.id = 'apple-signin-script';
+          script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+          script.async = true;
+          script.defer = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Apple Sign In script'));
+          document.body.appendChild(script);
+        });
+      };
+
+      await loadAppleScript();
+
+      // Setup Apple Sign In
+      // @ts-ignore - Apple SDK not typed
+      AppleID.auth.init({
+        clientId: APPLE_CLIENT_ID,
+        scope: 'name email',
+        redirectURI: `${window.location.origin}/auth/callback/apple`,
+        usePopup: true
+      });
+
+      // Perform sign in
+      // @ts-ignore - Apple SDK not typed
+      const response = await AppleID.auth.signIn();
+
+      if (response.authorization && response.authorization.id_token) {
+        try {
+          // Call our backend with the ID token and authorization code
+          const user = await authService.socialLogin(
+            'apple',
+            response.authorization.id_token,
+            response.authorization.code
+          );
+          navigate(from);
+        } catch (error) {
+          console.error('Apple login processing failed:', error);
+          setLoginError('Apple login failed. Please try again.');
+        }
+      } else {
+        setLoginError('Apple login failed. Missing authentication data.');
+      }
+
+    } catch (error) {
+      console.error('Apple login failed:', error);
+      setLoginError('Apple login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[SignInPage] Login submit started');
     setLoginError('');
     setIsLoading(true);
 
     // Simple validation
     if (!loginEmail.trim() || !loginPassword.trim()) {
-      console.log('[SignInPage] Validation failed - missing email or password');
       setLoginError('Please enter both email and password.');
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log('[SignInPage] Sending login request to /api/auth/login');
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: loginEmail,
-          password: loginPassword,
-        }),
-      });
+      await authService.login(loginEmail, loginPassword);
 
-      console.log('[SignInPage] Login response received, status:', response.status);
-
-      let data;
-      try {
-        data = await response.json();
-        console.log('[SignInPage] Response data:', JSON.stringify(data, null, 2));
-      } catch (parseError) {
-        console.error('[SignInPage] Failed to parse response as JSON:', parseError);
-        const text = await response.text();
-        console.log('[SignInPage] Raw response text:', text);
-        throw new Error('Invalid response from server');
-      }
-
-      if (!response.ok) {
-        console.log('[SignInPage] Login failed, response not OK');
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // Use auth service for login
-      console.log('[SignInPage] Login successful, saving auth data');
-      authService.login(data.token, data.user);
-
-      // Redirect to home page
-      console.log('[SignInPage] Redirecting to home page');
-      navigate('/');
+      // Redirect to the page user came from or dashboard
+      navigate(from);
     } catch (error) {
-      console.error('[SignInPage] Login error:', error);
+      console.error('Login error:', error);
       setLoginError((error as Error).message || 'Invalid email or password.');
     } finally {
       setIsLoading(false);
-      console.log('[SignInPage] Login process completed');
     }
   };
 
@@ -160,33 +335,15 @@ const SignInPage: React.FC = () => {
     }
 
     try {
-      // All users are registered as customers by default
-      const userData = {
+      await authService.register({
         name: `${firstName} ${lastName}`,
         email: registerEmail,
         password: registerPassword,
-        role: 'customer' // Always register as customer - role changes must be done by admin
-      };
-
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
+        // All users are registered as customers by default
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      // Use auth service for login
-      authService.login(data.token, data.user);
-
-      // Redirect to home page
-      navigate('/');
+      // Redirect to the page user came from or dashboard
+      navigate(from);
     } catch (error) {
       setRegisterError((error as Error).message);
     } finally {
@@ -194,382 +351,349 @@ const SignInPage: React.FC = () => {
     }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setResetError('');
+    setIsLoading(true);
 
     if (!resetEmail.trim()) {
+      setResetError('Please enter your email address.');
+      setIsLoading(false);
       return;
     }
 
-    // Demo reset - in a real app this would call an API
-    setResetSent(true);
+    try {
+      const success = await authService.requestPasswordReset(resetEmail);
 
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setShowResetPassword(false);
-      setResetEmail('');
-      setResetSent(false);
-    }, 3000);
+      if (success) {
+        setResetSent(true);
+        setResetError('');
+      } else {
+        setResetError('Failed to send password reset email. Please try again.');
+      }
+    } catch (error) {
+      setResetError((error as Error).message || 'Failed to send password reset email.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Handle social login
-  const handleSocialLogin = (provider: string) => {
-    setLoginError(`${provider} login is not available in this demo environment`);
-  };
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="max-w-md mx-auto bg-white shadow-md rounded-lg p-6">
+        <h1 className="text-2xl font-bold text-center mb-6">
+          {showResetPassword ? 'Reset Password' : (activeTab === 'login' ? 'Sign In' : 'Create Account')}
+        </h1>
 
-  const renderLoginForm = () => {
-    if (showResetPassword) {
-      return (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Reset Password</h2>
-
-          {resetSent ? (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
-              Password reset link has been sent to your email address.
-            </div>
-          ) : (
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div>
-                <label htmlFor="resetEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="resetEmail"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-                  placeholder="Enter your account email"
-                  required
-                />
-              </div>
-
-              <div>
+        {/* Reset Password Form */}
+        {showResetPassword ? (
+          <>
+            {resetSent ? (
+              <div className="text-center mb-6">
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                  <p>We've sent a password reset link to your email address.</p>
+                </div>
                 <button
-                  type="submit"
-                  className="w-full bg-primary-red hover:bg-red-700 text-white font-medium py-2 px-4 rounded transition-colors"
-                >
-                  Send Reset Link
-                </button>
-              </div>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowResetPassword(false)}
-                  className="text-sm text-primary-red hover:underline"
+                  onClick={() => {
+                    setShowResetPassword(false);
+                    setResetSent(false);
+                    setResetEmail('');
+                  }}
+                  className="text-primary-red hover:underline"
                 >
                   Back to Sign In
                 </button>
               </div>
-            </form>
-          )}
-        </div>
-      );
-    }
+            ) : (
+              <form onSubmit={handleResetPassword}>
+                <div className="mb-4">
+                  <label htmlFor="reset-email" className="block text-gray-700 text-sm font-medium mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="reset-email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                    placeholder="your.email@example.com"
+                    required
+                  />
+                </div>
 
-    return (
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Sign In to Your Account</h2>
+                {resetError && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <p>{resetError}</p>
+                  </div>
+                )}
 
-        {loginError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {loginError}
-          </div>
-        )}
-
-        <form onSubmit={handleLoginSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="loginEmail" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="loginEmail"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-              placeholder="Enter your email"
-              required
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label htmlFor="loginPassword" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
+                <div className="flex justify-between items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(false)}
+                    className="text-gray-600 hover:underline"
+                  >
+                    Back to Sign In
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-primary-red text-white px-4 py-2 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Tabs */}
+            <div className="flex mb-6 border-b">
               <button
-                type="button"
-                onClick={() => setShowResetPassword(true)}
-                className="text-xs text-primary-red hover:underline"
+                className={`flex-1 py-2 ${
+                  activeTab === 'login'
+                    ? 'border-b-2 border-primary-red text-primary-red'
+                    : 'text-gray-500'
+                }`}
+                onClick={() => setActiveTab('login')}
               >
-                Forgot Password?
+                Sign In
+              </button>
+              <button
+                className={`flex-1 py-2 ${
+                  activeTab === 'register'
+                    ? 'border-b-2 border-primary-red text-primary-red'
+                    : 'text-gray-500'
+                }`}
+                onClick={() => setActiveTab('register')}
+              >
+                Register
               </button>
             </div>
-            <input
-              type="password"
-              id="loginPassword"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-              placeholder="Enter your password"
-              required
-            />
-          </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 text-primary-red focus:ring-primary-red border-gray-300 rounded"
-            />
-            <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
-              Remember me
-            </label>
-          </div>
+            {/* Login Form */}
+            {activeTab === 'login' && (
+              <form onSubmit={handleLoginSubmit}>
+                <div className="mb-4">
+                  <label htmlFor="email" className="block text-gray-700 text-sm font-medium mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                    placeholder="your.email@example.com"
+                    required
+                  />
+                </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary-red hover:bg-red-700 text-white font-medium py-2 px-4 rounded transition-colors disabled:opacity-50"
-            >
-              {isLoading ? 'Signing In...' : 'Sign In'}
-            </button>
-          </div>
-        </form>
+                <div className="mb-4">
+                  <label
+                    htmlFor="password"
+                    className="block text-gray-700 text-sm font-medium mb-2"
+                  >
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                    placeholder="********"
+                    required
+                  />
+                </div>
 
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or sign in with</span>
-            </div>
-          </div>
+                <div className="flex justify-between mb-6">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="remember-me"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 text-primary-red focus:ring-primary-red border-gray-300 rounded"
+                    />
+                    <label htmlFor="remember-me" className="ml-2 block text-gray-700 text-sm">
+                      Remember me
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(true)}
+                    className="text-primary-red text-sm hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            {/* Google Login */}
-            <div className="flex justify-center">
-              <SocialLoginButton
-                provider="Google"
-                onClick={() => handleSocialLogin('Google')}
-              />
-            </div>
+                {loginError && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <p>{loginError}</p>
+                  </div>
+                )}
 
-            {/* Facebook Login */}
-            <div className="flex justify-center">
-              <SocialLoginButton
-                provider="Facebook"
-                onClick={() => handleSocialLogin('Facebook')}
-              />
-            </div>
+                <button
+                  type="submit"
+                  className="w-full bg-primary-red text-white py-2 px-4 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Signing in...' : 'Sign In'}
+                </button>
 
-            {/* Apple Login */}
-            <div className="flex justify-center">
-              <SocialLoginButton
-                provider="Apple"
-                onClick={() => handleSocialLogin('Apple')}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+                <div className="my-6 relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                  </div>
+                </div>
 
-  const renderRegisterForm = () => {
-    return (
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Create Your Account</h2>
+                <div className="grid grid-cols-3 gap-3">
+                  <SocialLoginButton provider="Google" onClick={handleGoogleLogin} />
+                  <SocialLoginButton provider="Apple" onClick={handleAppleLogin} />
+                  <SocialLoginButton provider="Facebook" onClick={handleFacebookLogin} />
+                </div>
+              </form>
+            )}
 
-        {registerError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {registerError}
-          </div>
+            {/* Registration Form */}
+            {activeTab === 'register' && (
+              <form onSubmit={handleRegisterSubmit}>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label htmlFor="first-name" className="block text-gray-700 text-sm font-medium mb-2">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      id="first-name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="last-name" className="block text-gray-700 text-sm font-medium mb-2">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      id="last-name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label htmlFor="register-email" className="block text-gray-700 text-sm font-medium mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="register-email"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                    required
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label htmlFor="register-password" className="block text-gray-700 text-sm font-medium mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    id="register-password"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                    required
+                    minLength={8}
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label htmlFor="confirm-password" className="block text-gray-700 text-sm font-medium mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    id="confirm-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-red focus:border-primary-red"
+                    required
+                  />
+                </div>
+
+                <div className="mb-6">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="terms"
+                      checked={agreeToTerms}
+                      onChange={(e) => setAgreeToTerms(e.target.checked)}
+                      className="h-4 w-4 text-primary-red focus:ring-primary-red border-gray-300 rounded"
+                      required
+                    />
+                    <label htmlFor="terms" className="ml-2 block text-gray-700 text-sm">
+                      I agree to the{' '}
+                      <a href="/terms" className="text-primary-red hover:underline">
+                        Terms of Service
+                      </a>{' '}
+                      and{' '}
+                      <a href="/privacy" className="text-primary-red hover:underline">
+                        Privacy Policy
+                      </a>
+                    </label>
+                  </div>
+                </div>
+
+                {registerError && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <p>{registerError}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-primary-red text-white py-2 px-4 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Creating Account...' : 'Create Account'}
+                </button>
+
+                <div className="my-6 relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or register with</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <SocialLoginButton provider="Google" onClick={handleGoogleLogin} />
+                  <SocialLoginButton provider="Apple" onClick={handleAppleLogin} />
+                  <SocialLoginButton provider="Facebook" onClick={handleFacebookLogin} />
+                </div>
+              </form>
+            )}
+          </>
         )}
-
-        <form onSubmit={handleRegisterSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                First Name*
-              </label>
-              <input
-                type="text"
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name*
-              </label>
-              <input
-                type="text"
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="registerEmail" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address*
-            </label>
-            <input
-              type="email"
-              id="registerEmail"
-              value={registerEmail}
-              onChange={(e) => setRegisterEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="registerPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Password*
-            </label>
-            <input
-              type="password"
-              id="registerPassword"
-              value={registerPassword}
-              onChange={(e) => setRegisterPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-              required
-              minLength={8}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Password must be at least 8 characters long.
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password*
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary-red"
-              required
-            />
-          </div>
-
-          <div className="bg-gray-50 p-3 rounded-md border border-gray-200 my-3">
-            <p className="text-sm text-gray-600">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              All accounts are created with customer access by default. For vendor or other account types, please contact an administrator after registration.
-            </p>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="agreeToTerms"
-              checked={agreeToTerms}
-              onChange={(e) => setAgreeToTerms(e.target.checked)}
-              className="h-4 w-4 text-primary-red focus:ring-primary-red border-gray-300 rounded"
-              required
-            />
-            <label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-700">
-              I agree to the <Link to="#" className="text-primary-red hover:underline">Terms of Service</Link> and <Link to="#" className="text-primary-red hover:underline">Privacy Policy</Link>
-            </label>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary-red hover:bg-red-700 text-white font-medium py-2 px-4 rounded transition-colors disabled:opacity-50"
-            >
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-            </button>
-          </div>
-
-          <div className="mt-4">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or sign up with</span>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {/* Google Login */}
-              <div className="flex justify-center">
-                <SocialLoginButton
-                  provider="Google"
-                  onClick={() => setRegisterError('Google login is not available in this demo environment')}
-                />
-              </div>
-
-              {/* Facebook Login */}
-              <div className="flex justify-center">
-                <SocialLoginButton
-                  provider="Facebook"
-                  onClick={() => setRegisterError('Facebook login is not available in this demo environment')}
-                />
-              </div>
-
-              {/* Apple Login */}
-              <div className="flex justify-center">
-                <SocialLoginButton
-                  provider="Apple"
-                  onClick={() => setRegisterError('Apple login is not available in this demo environment')}
-                />
-              </div>
-            </div>
-          </div>
-        </form>
       </div>
-    );
-  };
-
-  return (
-    <div className="flex justify-center items-center py-8 px-4">
-      <div className="w-full max-w-md bg-white shadow-md rounded-lg overflow-hidden">
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200">
-          <button
-            type="button"
-            className={`w-1/2 py-3 font-medium text-sm focus:outline-none ${activeTab === 'login' ? 'text-primary-red border-b-2 border-primary-red' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('login')}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            className={`w-1/2 py-3 font-medium text-sm focus:outline-none ${activeTab === 'register' ? 'text-primary-red border-b-2 border-primary-red' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('register')}
-          >
-            Create Account
-          </button>
-        </div>
-
-        {/* Form Content */}
-        <div className="p-5">
-          {activeTab === 'login' ? renderLoginForm() : renderRegisterForm()}
-        </div>
-      </div>
+      {/* For Google One Tap fallback */}
+      <div id="google-signin-button" className="hidden"></div>
     </div>
   );
 };

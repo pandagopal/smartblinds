@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { authService } from '../services/authService';
+import { authService, UserRole } from '../services/authService';
 import CustomerDashboard from './dashboards/CustomerDashboard';
 import VendorDashboard from './dashboards/VendorDashboard';
 import AdminDashboard from './dashboards/AdminDashboard';
@@ -64,33 +64,28 @@ const DashboardRouter: React.FC = () => {
     return <Navigate to="/signin" replace />;
   }
 
-  // Check for admin specifically - if user is admin, let them access admin dashboard
-  if (authService.isAdmin()) {
-    console.log('[DashboardRouter] Identified as admin, showing admin dashboard');
-    return <AdminDashboard />;
-  }
-
   // Route to the appropriate dashboard based on user role
   console.log('[DashboardRouter] User role:', user?.role);
 
   switch (user?.role) {
-    case 'admin':
+    case UserRole.ADMIN:
+      console.log('[DashboardRouter] Identified as admin, showing admin dashboard');
       return <AdminDashboard />;
-    case 'vendor':
+    case UserRole.VENDOR:
+      console.log('[DashboardRouter] Identified as vendor, showing vendor dashboard');
       return <VendorDashboard />;
-    case 'installer':
+    case UserRole.INSTALLER:
+      console.log('[DashboardRouter] Identified as installer, showing installer dashboard');
       return <InstallerDashboard />;
-    case 'sales_person':
+    case UserRole.SALES_PERSON:
     case 'sales':
+      console.log('[DashboardRouter] Identified as sales person, showing sales dashboard');
       return <SalesDashboard />;
-    case 'customer':
+    case UserRole.CUSTOMER:
+      console.log('[DashboardRouter] Identified as customer, showing customer dashboard');
       return <CustomerDashboard />;
     default:
-      // If no specific role is set but user is admin (checked by other fields)
-      if (user?.is_admin === true || user?.is_admin === 't' || user?.is_admin === 'true' || user?.is_admin === 1 || user?.is_admin === '1') {
-        return <AdminDashboard />;
-      }
-
+      // If role is not recognized, default to customer dashboard
       console.log('[DashboardRouter] No specific role identified, defaulting to customer dashboard');
       return <CustomerDashboard />;
   }

@@ -132,7 +132,7 @@ const UserAccountPage: React.FC = () => {
 
     switch (activeSection) {
       case 'profile':
-        return <UserProfile user={user} />;
+        return <UserProfile />; // No longer passing user prop
       case 'orders':
         return <OrderHistory userId={user.id} />;
       case 'measurements':
@@ -148,7 +148,7 @@ const UserAccountPage: React.FC = () => {
       case 'settings':
         return <AccountSettings />;
       default:
-        return <UserProfile user={user} />;
+        return <UserProfile />; // No longer passing user prop
     }
   };
 
@@ -177,10 +177,10 @@ const UserAccountPage: React.FC = () => {
         <div className="w-full md:w-1/4 bg-white rounded-lg shadow p-6">
           <div className="flex items-center mb-6">
             <div className="w-12 h-12 rounded-full bg-primary-red text-white flex items-center justify-center text-xl font-bold">
-              {user.firstName?.charAt(0) || ''}{user.lastName?.charAt(0) || ''}
+              {user.name ? user.name.charAt(0) : ''}
             </div>
             <div className="ml-4">
-              <h2 className="text-lg font-bold">{user.firstName} {user.lastName}</h2>
+              <h2 className="text-lg font-bold">{user.name}</h2>
               <p className="text-sm text-gray-600">{user.email}</p>
               <p className="text-xs text-gray-500 mt-1">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</p>
             </div>
@@ -218,7 +218,6 @@ const UserAccountPage: React.FC = () => {
                     <svg className="w-5 h-5 stroke-gray-700" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M10 3H14C19.5 3 21 4.5 21 10V14C21 19.5 19.5 21 14 21H10C4.5 21 3 19.5 3 14V10C3 4.5 4.5 3 10 3Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M17.5 11.5C16.672 11.5 16 10.828 16 10C16 9.172 16.672 8.5 17.5 8.5C18.328 8.5 19 9.172 19 10C19 10.828 18.328 11.5 17.5 11.5Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M9.5 11.5C8.672 11.5 8 10.828 8 10C8 9.172 8.672 8.5 9.5 8.5C10.328 8.5 11 9.172 11 10C11 10.828 10.328 11.5 9.5 11.5Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M9.5 11.5C8.672 11.5 8 10.828 8 10C8 9.172 8.672 8.5 9.5 8.5C10.328 8.5 11 9.172 11 10C11 10.828 10.328 11.5 9.5 11.5Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M19 17L15.5 15.5C14.62 16.45 13.37 17 12 17C10.63 17 9.38 16.45 8.5 15.5L5 17" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
