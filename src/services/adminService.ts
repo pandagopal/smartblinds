@@ -98,13 +98,13 @@ const apiRequest = async <T>(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const token = authService.getToken();
+      let currentToken = authService.getToken();
 
       // Enhanced token debugging
-      if (token) {
+      if (currentToken) {
         try {
           // Check if we can decode the token
-          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+          const tokenPayload = JSON.parse(atob(currentToken.split('.')[1]));
           const expTime = new Date(tokenPayload.exp * 1000);
           const now = new Date();
           const timeLeft = expTime.getTime() - now.getTime();
@@ -119,7 +119,7 @@ const apiRequest = async <T>(
               console.log('[Admin API] Token refreshed successfully');
               // Get the new token
               const newToken = authService.getToken();
-              if (newToken) token = newToken;
+              if (newToken) currentToken = newToken;
             }
           }
         } catch (error) {
@@ -127,14 +127,14 @@ const apiRequest = async <T>(
         }
       }
 
-      if (!token) {
+      if (!currentToken) {
         throw new Error('No authentication token available');
       }
 
       const options: RequestInit = {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${currentToken}`,
           'Content-Type': 'application/json'
         }
       };

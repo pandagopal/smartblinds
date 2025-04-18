@@ -1,5 +1,5 @@
 // Authentication service to handle login, logout and auth state
-import jwtDecode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
 // User data interface
 export interface UserData {
