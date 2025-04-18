@@ -267,6 +267,13 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    // Always set up JWT auto-refresh if a valid session exists
+    if (authService.isAuthenticated()) {
+      authService.setupTokenRefresh();
+    }
+  }, []);
+
   return (
     <Router>
       <Helmet>
